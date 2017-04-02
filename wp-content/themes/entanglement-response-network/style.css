@@ -1,0 +1,97 @@
+/*
+Theme Name: Entanglement Response Network
+Theme URI: http://yourwebsite.com/twentyfourteen-child/
+Description: Entanglement Response Network child theme, based on Twenty Thirteen
+Author: Lance Finfrock
+Author URI: http://
+Template: twentythirteen
+Version: 1.0.0
+Tags: black, green, white, light, dark, two-columns, three-columns, left-sidebar, right-sidebar, fixed-layout, responsive-layout, custom-background, custom-header, custom-menu, editor-style, featured-images, flexible-header, full-width-template, microformats, post-formats, rtl-language-support, sticky-post, theme-options, translation-ready, accessibility-ready, responsive-layout, infinite-scroll, post-slider, design, food, journal, magazine, news, photography, portfolio, clean, contemporary, dark, elegant, modern, professional, sophisticated
+Text Domain: entanglement-response-network
+
+*/ 
+
+
+@import url("../twentythirteen/style.css");
+
+.entry-header,
+.entry-content,
+.entry-summary,
+.entry-meta {
+    margin: 0 auto;
+    max-width: 1110px;
+	width: 95%;
+}
+
+.site-header .site-title:hover{
+text-decoration: none;
+}
+
+.site-header{
+    min-width: 1045px; 
+    background-size: cover;
+}
+
+.site-footer{
+    min-width: 1050px;     
+}
+
+@media (max-width: 767px) {
+    #masthead {
+        background-size: cover;
+    }
+}
+@media (max-width: 359px) {
+    #masthead {
+        background-size: cover;
+    }
+} 
+
+#page {
+    max-width: 1050px;
+    min-width: 1050px;
+    margin: 0 auto;
+}
+
+#main {
+   background-color: #ffffff;   /* white */
+}
+
+.site {
+background-color: #000000;
+}
+
+body {
+background: rgb(34,59,90); /* Old browsers */
+background: -moz-linear-gradient(left,  rgba(34,59,90,1) 0%, rgba(23,77,125,1) 50%, rgba(18,70,116,1) 51%, rgba(31,111,173,1) 100%); /* FF3.6+ */
+background: -webkit-gradient(linear, left top, right top, color-stop(0%,rgba(34,59,90,1)), color-stop(50%,rgba(23,77,125,1)), color-stop(51%,rgba(18,70,116,1)), color-stop(100%,rgba(31,111,173,1))); /* Chrome,Safari4+ */
+background: -webkit-linear-gradient(left,  rgba(34,59,90,1) 0%,rgba(23,77,125,1) 50%,rgba(18,70,116,1) 51%,rgba(31,111,173,1) 100%); /* Chrome10+,Safari5.1+ */
+background: -o-linear-gradient(left,  rgba(34,59,90,1) 0%,rgba(23,77,125,1) 50%,rgba(18,70,116,1) 51%,rgba(31,111,173,1) 100%); /* Opera 11.10+ */
+background: -ms-linear-gradient(left,  rgba(34,59,90,1) 0%,rgba(23,77,125,1) 50%,rgba(18,70,116,1) 51%,rgba(31,111,173,1) 100%); /* IE10+ */
+background: linear-gradient(to right,  rgba(34,59,90,1) 0%,rgba(23,77,125,1) 50%,rgba(18,70,116,1) 51%,rgba(31,111,173,1) 100%); /* W3C */
+filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#223b5a', endColorstr='#1f6fad',GradientType=1 ); /* IE6-9 */
+
+}
+
+.entry-title {
+   font-size: 28px;
+}
+
+.site-title {
+   font-size: 34px;
+   text-align: left;
+   width: 65%;
+   padding: 45px 0 0 0;
+}
+
+.site-footer .sidebar-container {
+background-color: #161e25;
+}
+
+.site-header h2 {
+font-size: 20px;
+text-align: left;
+font-family: arial;
+font-style: normal;
+padding: 5px 0 0 0;
+}

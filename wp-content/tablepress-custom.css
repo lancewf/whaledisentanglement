@@ -1,0 +1,20 @@
+#tablepress-17 .column-1 {
+	width: 70%;
+	vertical-align: middle;
+	text-align: center;
+}
+
+#tablepress-17 .column-2 {
+	width: 30%;
+	vertical-align: middle;
+	text-align: center;
+}
+
+table {
+	border-bottom: 0;
+}
+
+td {
+	border-top: 0;
+	padding: 6px 10px 6px 0;
+}
