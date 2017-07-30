@@ -1,20 +1,75 @@
-#tablepress-17 .column-1 {
-	width: 70%;
+.tablepress-network-tools {
+	line-height: 115%;
+}
+
+.tablepress-case-page .column-1,
+.tablepress-case-page .column-2,
+ {
+	padding: 1px;
+}
+
+.tablepress tbody td {
 	vertical-align: middle;
 	text-align: center;
 }
 
-#tablepress-17 .column-2 {
-	width: 30%;
-	vertical-align: middle;
+.tablepress .odd td {
+	background-color: #eeeeee;
+}
+
+.tablepress .even td {
+	background-color: #ffffff;
+}
+
+.tablepress td,
+.tablepress thead th {
+	border: 1px solid #000000;
+}
+
+.tablepress-case-page {
+	line-height: 115%;
+}
+
+.tablepress-case-page .column-2 {
+	min-width: 80px;
+	max-width: 80px;
+}
+
+.tablepress-case-page .column-3 {
+	min-width: 100px;
+	max-width: 100px;
+}
+
+.tablepress-case-page .column-5 {
+	min-width: 180px;
+	max-width: 180px;
+}
+
+.tablepress-case-page .column-1 {
+	min-width: 203px;
+	max-width: 203px;
+}
+
+.tablepress-case-page .column-4 {
+	min-width: 203px;
+	max-width: 203px;
+}
+
+.tablepress-case-page .column-1,
+.tablepress-case-page .column-2,
+.tablepress-case-page .column-3
+.tablepress-case-page .column-4,
+.tablepress-case-page .column-5,
+.tablepress-case-page .column-6 {
+	padding: 1px;
+}
+
+.tablepress-case-page .row-1 .column-1,
+.tablepress-case-page .row-1 .column-2,
+.tablepress-case-page .row-1 .column-3,
+.tablepress-case-page .row-1 .column-4,
+.tablepress-case-page .row-1 .column-5,
+.tablepress-case-page .row-1 .column-6 {
 	text-align: center;
-}
-
-table {
-	border-bottom: 0;
-}
-
-td {
-	border-top: 0;
-	padding: 6px 10px 6px 0;
+	padding: 1px;
 }

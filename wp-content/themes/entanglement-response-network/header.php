@@ -27,8 +27,6 @@
 	<!--[if lt IE 9]>
 	<script src="<?php echo get_template_directory_uri(); ?>/js/html5.js"></script>
 	<![endif]-->
-    <link href="http://vjs.zencdn.net/c/video-js.css" rel="stylesheet">
-    <script src="http://vjs.zencdn.net/c/video.js"></script>
 	<?php wp_head(); ?>
     
 <script>
@@ -51,7 +49,7 @@
 				<h2 class="site-description"><?php bloginfo( 'description' ); ?></h2>
 			</a>
             <div class="extra-info" align="center">
-            A collaborative effort overseen by NOAA Fisheries' Marine Mammal Health and Stranding Response Program, involving: NOAA Fisheries' Office of Protected Resources and Regional Protected Resources Divisions, Office of National Marine Sanctuaries, U.S. Coast Guard Districts, State of Hawaii Department of Land and Natural Resources, NOAA's Fisheries Science Centers, NOAA Fisheries' Office of Law Enforcement, fishers, and many private organizations.
+            A collaborative effort overseen by NOAA Fisheries' Marine Mammal Health and Stranding Response Program, involving: NOAA Fisheries' Office of Protected Resources and Regional Protected Resources Divisions, Office of National Marine Sanctuaries, U.S. Coast Guard Districts, State of Hawaii Department of Land and Natural Resources, NOAA's Fisheries Science Centers, fishers, and many private organizations.
             </div>
 			<div id="navbar" class="navbar">
 				<nav id="site-navigation" class="navigation main-navigation" role="navigation">

@@ -68,9 +68,7 @@ if ( ( $client_last_modified && $client_etag )
 	exit;
 }
 
-header("X-Sendfile: $file");
-
 // If we made it this far, just serve the file
 //readfile( $file );
 
-//exit;
+header("X-Sendfile: $file");

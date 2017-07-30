@@ -7,7 +7,6 @@
            
             <table width="807" height="146" border="0" align="center" cellspacing="3">
               <tr>
-              <tr>
                 <th width="95" scope="col">
                     <div align="center">
                         <img src="http://www.whaledisentanglement.org/mmhsrp_logo.jpg" alt="logo" width="85" height="79" />
@@ -20,18 +19,8 @@
                 </th>
                 <th width="96" scope="col">
                     <div align="center">
-                        <img src="http://www.whaledisentanglement.org//Logo_NMS.jpg" alt="logo" width="89" height="94" />
+                    <img src="http://www.whaledisentanglement.org//Logo_NMS.jpg" alt="logo" width="89" height="94" />
                     </div>
-                </th>
-                 <th width="95" scope="col">
-                    <div align="center">
-                        <img src="http://www.whaledisentanglement.org/Logo_NOAA.jpg" alt="logo" width="85" height="79" />
-                    </div>
-                </th>
-                 <th width="95" scope="col">
-                  <div align="center">
-                    <img src="http://www.whaledisentanglement.org/NOAA_Office_of_Law_Enforcement.png" alt="logo" width="70" height="43" />
-                  </div>
                 </th>
                 <th width="96" scope="col">
                     <div align="center">
@@ -39,13 +28,10 @@
                     </div>
                 </th>
               </tr>
-              </tr>
               <tr>
                 <td scope="col"><div align="center" class="style23">NOAA Fisheries’ Office of Protected Resources</div></td>
                 <td height="28" scope="col"><div align="center" class="style23">NOAA Fisheries’ Protected Resource Divisions</div></td>
                 <td scope="col"><div align="center" class="style23">NOAA's  Office of National Marine Sanctuaries</div></td>
-                <td scope="col"><div align="center" class="style23">NOAA Fisheries’ Regional Science Centers</div></td>
-                <td class="style23" scope="col"><div align="center">NOAA’s Office of Law Enforcement</div></td>
                 <td scope="col"><div align="center" class="style23">U.S. Coast Guard Districts</div></td>
               </tr>
           </table>

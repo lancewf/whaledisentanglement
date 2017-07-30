@@ -211,6 +211,9 @@ get_header(); ?>
                       <td valign="top"><?php print get_field( "distance_straightline" ) ?></td>
                     </tr>
                 </table>
+                <div>
+                    <?php the_field('gear_nvestigation_narrative'); ?>
+                </div>
 				<?php wp_link_pages( array( 'before' => '<div class="page-links"><span class="page-links-title">' . __( 'Pages:', 'twentythirteen' ) . '</span>', 'after' => '</div>', 'link_before' => '<span>', 'link_after' => '</span>' ) ); ?>
 				</div><!-- .entry-content -->
 
