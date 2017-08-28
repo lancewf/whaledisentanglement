@@ -1064,6 +1064,7 @@ function wp_dropdown_pages( $args = '' ) {
 
 	$r = wp_parse_args( $args, $defaults );
 
+	$r['hierarchical'] = 0;
 	$pages = get_pages( $r );
 	$output = '';
 	// Back-compat with old system where both id and name were based on $name argument

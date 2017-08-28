@@ -172,6 +172,7 @@ class acf_field_post_object extends acf_field
 			
 			if( $get_pages )
 			{
+                                $args['hierarchical'] = 0;
 				$posts = get_pages( $args );
 			}
 			else
