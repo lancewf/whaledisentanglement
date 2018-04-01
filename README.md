@@ -1,8 +1,6 @@
 # whaledisentanglement
-Whale Disentanglement wordpress
 This is the source code used for the http://www.whaledisentanglement.org/ site. The same code is used for 
-all three subdomains (media, hawaii-alaska, and west-coast). 
-
+all three subdomains (media, hawaii-alaska, and west-coast). This is a mysql, php, nginx, wordpress site. It has some custom plugins. One of the plugins is 'users-only-access' that prevents non login users from accessing images in the uploads folder. The other plugins are 3rd party.  
 
 ## To run the site
 
