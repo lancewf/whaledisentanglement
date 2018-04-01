@@ -27,9 +27,6 @@ do_build(){
 do_install() {
   mkdir $pkg_prefix/static
   cp -r src/* $pkg_prefix/static/.
-  
-  mkdir $pkg_prefix/database
-  cp habitat/database/* $pkg_prefix/database/.
 
   return 0
 }
