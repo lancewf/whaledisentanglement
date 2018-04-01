@@ -14,3 +14,5 @@ wp-content/backups/
 sitemap.xml
 sitemap.xml.gz
 .DS_Store
+results/
+.bash_history
