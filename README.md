@@ -10,3 +10,9 @@ all three subdomains (media, hawaii-alaska, and west-coast). This is a mysql, ph
 1. Enter habitat studio, `hab studio enter`
 1. Then run `start`
 1. The goto localhost:8080
+
+## To load mysql data
+1. From the studio run `mysql_load_data <data.sql>`
+
+## To load existing images
+1. Copy 'upload' folder to `/hab/svc/whaledisentanglement/data/wp-content`
