@@ -117,11 +117,11 @@ get_header(); ?>
 					</header><!-- .entry-header -->
                     <br />
                     <br />
-                    <div align="center">
+                    <div class="terms-conditions-header" align="center">
                         The video and images included on this page have been acquired under NOAA's Marine Mammal Health and Stranding Response Program (MMHSRP - Permit #<?php echo $permit; ?>).  They are approved for usage as long as mention is made that the effort they depict/ represent falls under the authority of NOAA's MMHSRP, and images and video are captioned with "MMHSRP permit #<?php echo $permit; ?>". 
                     </div>
                     <div align="center"><strong>
-                    Scroll down for video and/ or images
+                    Scroll down for video and/or images
                     </strong></div>
 					<div class="entry-content">
                     
