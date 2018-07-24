@@ -56,13 +56,13 @@ function start() {
 
   start_sup
 
-  hab start $HAB_ORIGIN/whaledisentanglement --bind database:mysql.default --bind php:php.default
+  hab svc load $HAB_ORIGIN/whaledisentanglement --bind database:mysql.default --bind php:php.default
 
   wait_or_fail_for_port_to_listen $WHALEDISENTANGLEMENT_PORT
 }
 
 function mysql_load_data() {
-  install_if_missing lancewf/mysql mysql;
+  install_if_missing core/mysql mysql;
   $(hab pkg path $HAB_ORIGIN/whaledisentanglement)/bin/mysql_load.sh $1
 }
 
@@ -81,7 +81,7 @@ function start_php() {
 
   start_sup
 
-  hab start lancewf/php
+  hab svc load lancewf/php
 
   wait_or_fail_for_port_to_listen $PHP_PORT
 }
@@ -96,7 +96,7 @@ function start_mysql() {
 
   start_sup
 
-  hab start lancewf/mysql
+  hab svc load lancewf/mysql
 
   wait_or_fail_for_port_to_listen $MYSQL_PORT
 }
