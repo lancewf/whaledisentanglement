@@ -215,7 +215,7 @@ get_header(); ?>
                     <?php the_field('gear_nvestigation_narrative'); ?>
                 </div>
 
-                <h2>Case Updates</h2>
+                <h2>Case Updates</h2><a name="case-updates"></a>
                 <table width="675" height="150" border="0" align="center">
                     <tr>
                       <td width="110" valign="top" scope="col"><div align="right">Last sighting: </div></td>
