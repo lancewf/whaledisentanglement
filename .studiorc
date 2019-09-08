@@ -7,6 +7,7 @@ echo "set mouse-=a" >> ~/.vimrc
 export MYSQL_PORT=3306
 export WHALEDISENTANGLEMENT_PORT=8080
 export PHP_PORT=9000
+export SERVICE_NAME="whaledisentanglement"
 
 function htop() {
   install_if_missing core/which which;
@@ -44,7 +45,7 @@ function start() {
   install_if_missing core/busybox-static netstat;
   netstat -an | grep $WHALEDISENTANGLEMENT_PORT | grep LISTEN >/dev/null 2>/dev/null
   if [ $? == 0 ]; then
-    echo "whaledisentanglement is already running";
+    echo "$SERVICE_NAME is already running";
     return;
   fi
 
@@ -56,19 +57,23 @@ function start() {
 
   start_sup
 
-  hab svc load $HAB_ORIGIN/whaledisentanglement --bind database:mysql.default --bind php:php.default
+  hab svc load $HAB_ORIGIN/$SERVICE_NAME --bind database:mysql.default --bind php:php.default
 
   wait_or_fail_for_port_to_listen $WHALEDISENTANGLEMENT_PORT
+
+  to_http
+}
+
+function rebuild() {
+  build
+  hab svc unload $HAB_ORIGIN/$SERVICE_NAME
+  sleep 3
+  hab svc load $HAB_ORIGIN/$SERVICE_NAME --bind database:mysql.default --bind php:php.default
 }
 
 function mysql_load_data() {
   install_if_missing core/mysql mysql;
-  $(hab pkg path $HAB_ORIGIN/whaledisentanglement)/bin/mysql_load.sh $1
-}
-
-function mysql_shell() {
-  install_if_missing lancewf/mysql mysql;
-  $(hab pkg path $HAB_ORIGIN/whaledisentanglement)/bin/mysql.sh
+  $(hab pkg path $HAB_ORIGIN/$SERVICE_NAME)/bin/mysql_load.sh $1
 }
 
 function start_php() {
@@ -101,21 +106,29 @@ function start_mysql() {
   wait_or_fail_for_port_to_listen $MYSQL_PORT
 }
 
+function to_http() {
+  install_if_missing core/curl curl
+
+  mv /hab/svc/$SERVICE_NAME/data/wp-content/plugins/really-simple-ssl/force-deactivate.txt /hab/svc/$SERVICE_NAME/data/wp-content/plugins/really-simple-ssl/force-deactivate.php
+
+  curl http://localhost:8080/wp-content/plugins/really-simple-ssl/force-deactivate.php
+}
+
 function start_sup() {
   load_dev_config
-  hab sup status 2>/dev/null 1>&2
+  hab svc status 2>/dev/null 1>&2
   [[ $? == 0 ]] && return
   mkdir -p /hab/sup/default
   echo "=> Launching the Habitat Supervisor in the background..."
   hab sup run $* > /hab/sup/default/sup.log &
   while : ; do
-    hab sup status >/dev/null
+    hab svc status >/dev/null
     [[ $? -eq 0 ]] && break || sleep 1
   done
 }
 
 function status() {
- hab sup status;
+ hab svc status | column -t;
 }
 
 # Saves the in memory bash history to a file

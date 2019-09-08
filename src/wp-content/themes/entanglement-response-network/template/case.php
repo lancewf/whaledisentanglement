@@ -182,7 +182,7 @@ get_header(); ?>
                 </table>
                 <h2> Narrative </h2>
 				
-                <?php the_content(); ?>        
+                <?php the_content(); ?>
                     
                 <h2>Gear Investigation</h2>
                 <table width="675" height="150" border="0" align="center">
@@ -214,6 +214,55 @@ get_header(); ?>
                 <div>
                     <?php the_field('gear_nvestigation_narrative'); ?>
                 </div>
+
+                <h2>Case Updates</h2>
+                <table width="675" height="150" border="0" align="center">
+                    <tr>
+                      <td width="110" valign="top" scope="col"><div align="right">Last sighting: </div></td>
+                      <?php if (!empty(get_field( "last_sighting" )) ): ?>
+                        <td width="264" valign="top" scope="col"><?php print get_field( "last_sighting" ) ?></td>
+                      <?php else: ?>
+                        <td width="264" valign="top" scope="col">N/A</td>
+                      <?php endif ?>
+                      <td width="124" valign="top" scope="col"><div align="right"></div></td>
+                      <td width="159" valign="top" scope="col"></td>
+                    </tr>
+                    <tr>
+                      <td width="124" valign="top" scope="col"><div align="right">Happywhale sightings:</div></td>
+                      <?php if (!empty(get_field( "happywhale_url" )) ): ?>
+                        <td width="159" valign="top" scope="col">
+                            <a href="<?php print get_field( "happywhale_url" ) ?>" target="_new">
+                                Click here
+                            </a>
+                        </td>
+                      <?php else: ?>
+                        <td width="159" valign="top" scope="col">N/A</td>
+                      <?php endif ?>
+                      <td valign="top"><div align="right" ></div></td>
+                      <td valign="top"></td>
+                    </tr>
+                    <tr>
+                      <td valign="top"><div align="right" >Other sightings: </div></td>
+                      <?php if (!empty(get_field( "other_sightings" )) ): ?>
+                        <td valign="top"><?php print get_field( "other_sightings" ) ?></td>
+                      <?php else: ?>
+                        <td valign="top">N/A</td>
+                      <?php endif ?>
+                      <td valign="top"><div align="right" ></div></td>
+                      <td valign="top"></td>
+                    </tr>
+                    <tr>
+                      <td valign="top"><div align="right" class="style87">Alternate IDs: </div></td>
+                      <?php if (!empty(get_field( "alternate_ids" )) ): ?>
+                        <td valign="top"><?php print get_field( "alternate_ids" ) ?></td>
+                      <?php else: ?>
+                        <td valign="top">N/A</td>
+                      <?php endif ?>
+                      <td valign="top"><div align="right" ></div></td>
+                      <td valign="top"></td>
+                    </tr>
+                </table>
+
 				<?php wp_link_pages( array( 'before' => '<div class="page-links"><span class="page-links-title">' . __( 'Pages:', 'twentythirteen' ) . '</span>', 'after' => '</div>', 'link_before' => '<span>', 'link_after' => '</span>' ) ); ?>
 				</div><!-- .entry-content -->
 
