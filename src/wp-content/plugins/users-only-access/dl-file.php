@@ -12,12 +12,13 @@
  */
 
 require_once('../../../wp-load.php');
+require_once('./um_redirect.php');
 
 $file_url = get_site_url() . "/wp-content/uploads/" . $_GET[ 'file' ];
 
 if ($file_url != get_header_image())
 {
-    is_user_logged_in() ||  auth_redirect();
+    is_user_logged_in() ||  auth_redirect_um();
 }
 
 list($basedir) = array_values(array_intersect_key(wp_upload_dir(), array('basedir' => 1)))+array(NULL);
