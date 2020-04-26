@@ -1,200 +1,3 @@
-var live_field;
-var live_value;
-
-function um_conditional(){
-
-	jQuery('.um-field.um-is-conditional').each(function(){
-		//console.log('-----');
-		var found = 0;
-		var um_field_key = jQuery(this).data('key');
-		for (var i = 0; i < 5; i++) {
-
-			var action0 = jQuery(this).data('cond-'+i+'-action');
-			var field0 = jQuery(this).data('cond-'+i+'-field');
-			var operator0 = jQuery(this).data('cond-'+i+'-operator');
-			var value0 = jQuery(this).data('cond-'+i+'-value');
-
-
-			if (  action0 == 'show' && field0 == live_field && typeof value0 !== 'undefined' ) {
-
-				if ( operator0 == 'empty' ) {
-					if ( !live_value || live_value == '' || found > 0 ) {
-						jQuery(this).fadeIn();
-						found++;
-					} else {
-						jQuery(this).hide();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').hide();
-						um_reset_field('div.um-field[data-cond-'+i+'-field='+um_field_key+']');
-
-					}
-				}
-
-				if ( operator0 == 'not empty' ) {
-					if ( live_value && live_value != '' || found > 0 ) {
-						jQuery(this).fadeIn();
-						found++;
-					} else {
-						jQuery(this).hide();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').hide();
-						um_reset_field('div.um-field[data-cond-'+i+'-field='+um_field_key+']');
-
-					}
-				}
-
-				if ( operator0 == 'equals to' ) {
-					if ( value0 == live_value  || found > 0 ) {
-						jQuery(this).fadeIn();
-						found++;
-					} else {
-						jQuery(this).hide();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').hide();
-						um_reset_field('div.um-field[data-cond-'+i+'-field='+um_field_key+']');
-
-					}
-				}
-
-				if ( operator0 == 'not equals' ) {
-					if ( jQuery.isNumeric( value0 ) && parseInt( live_value ) != parseInt( value0 ) && live_value  || found > 0 ) {
-						jQuery(this).fadeIn();
-						found++;
-					} else if ( !jQuery.isNumeric( value0 ) && value0 != live_value  || found > 0 ) {
-						jQuery(this).fadeIn();
-						found++;
-					} else {
-						jQuery(this).hide();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').hide();
-						um_reset_field('div.um-field[data-cond-'+i+'-field='+um_field_key+']');
-
-					}
-				}
-
-				if ( operator0 == 'greater than' ) {
-					if ( jQuery.isNumeric( value0 ) && parseInt( live_value ) > parseInt( value0 )   || found > 0) {
-						jQuery(this).fadeIn();
-						found++;
-					} else {
-						jQuery(this).hide();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').hide();
-						um_reset_field('div.um-field[data-cond-'+i+'-field='+um_field_key+']');
-
-					}
-				}
-
-				if ( operator0 == 'less than' ) {
-					if ( jQuery.isNumeric( value0 ) && parseInt( live_value ) < parseInt( value0 ) && live_value   || found > 0) {
-						jQuery(this).fadeIn();
-						found++;
-					} else {
-						jQuery(this).hide();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').hide();
-						um_reset_field('div.um-field[data-cond-'+i+'-field='+um_field_key+']');
-
-					}
-				}
-
-				if ( operator0 == 'contains' ) {
-					if ( live_value && live_value.indexOf( value0 ) >= 0  || found > 0 ) {
-						jQuery(this).fadeIn();
-						found++;
-					} else {
-						jQuery(this).hide();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').hide();
-						um_reset_field('div.um-field[data-cond-'+i+'-field='+um_field_key+']');
-
-					}
-				}
-
-			}
-
-			if (  action0 == 'hide' && field0 == live_field && typeof value0 !== 'undefined'  ) {
-
-				if ( operator0 == 'empty' ) {
-					if ( !live_value || live_value == '' ) {
-						jQuery(this).hide();
-						found++;
-					} else {
-						jQuery(this).fadeIn();
-
-					}
-				}
-
-				if ( operator0 == 'not empty' ) {
-					if ( live_value && live_value != '' ) {
-						jQuery(this).hide();
-						found++;
-					} else {
-						jQuery(this).fadeIn();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').show();
-
-					}
-				}
-
-				if ( operator0 == 'equals to' ) {
-					if ( value0 == live_value ) {
-						jQuery(this).hide();
-						found++;
-					} else {
-						jQuery(this).fadeIn();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').show();
-
-					}
-				}
-
-				if ( operator0 == 'not equals' ) {
-					if ( jQuery.isNumeric( value0 ) && parseInt( live_value ) != parseInt( value0 ) && live_value ) {
-						jQuery(this).hide();
-						found++;
-					} else if ( !jQuery.isNumeric( value0 ) && value0 != live_value ) {
-						jQuery(this).hide();
-						found++;
-					} else {
-						jQuery(this).fadeIn();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').show();
-
-					}
-				}
-
-				if ( operator0 == 'greater than' ) {
-					if ( jQuery.isNumeric( value0 ) && parseInt( live_value ) > parseInt( value0 ) ) {
-						jQuery(this).hide();
-						found++;
-					} else {
-						jQuery(this).fadeIn();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').show();
-
-					}
-				}
-
-				if ( operator0 == 'less than' ) {
-					if ( jQuery.isNumeric( value0 ) && parseInt( live_value ) < parseInt( value0 ) && live_value ) {
-						jQuery(this).hide();
-						found++;
-					} else {
-						jQuery(this).fadeIn();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').show();
-
-					}
-				}
-
-				if ( operator0 == 'contains' ) {
-					if ( live_value && live_value.indexOf( value0 ) >= 0 ) {
-						jQuery(this).hide();
-						found++;
-					} else {
-						jQuery(this).fadeIn();
-						jQuery('div.um-field[data-cond-'+i+'-field='+um_field_key+']').show();
-
-					}
-				}
-				//console.log( 'hide',i,value0, live_value );
-
-			}
-
-		}
-
-	});
-
-}
 
 function UM_check_password_matched() {
 	jQuery(document).on('keyup', 'input[data-key=user_password],input[data-key=confirm_user_password]', function(e) {
@@ -212,116 +15,56 @@ function UM_check_password_matched() {
 	});
 }
 
-var xhrValidateUsername = false;
-function UM_check_username() {
-	jQuery(document).on('keyup', 'input[data-key=user_login]:not([disabled=disabled])', function() {
-		var field = jQuery('input[data-key=user_login]');
-		var value = field.val();
-
-		if(field.parents('.um-field').find('.um-field-error').length) {
-			var error = field.parents('.um-field').find('.um-field-error');
-		} else {
-			var error = jQuery('<div class="um-field-error"><span class="um-field-arrow"><i class="um-faicon-caret-up"></i></span>Your username is already taken</div>');
-		}
-
-		// abort previous xhr request
-		if(xhrValidateUsername) {
-			xhrValidateUsername.abort();
-		}
-
-		if(!value) {
-			field.removeClass('um-searching-username');
-
-			return;
-		}
-
-		field.addClass('um-searching-username');
-
-		xhrValidateUsername = jQuery.ajax({
-			url  : um_scripts.ajaxurl,
-			type : 'post',
-			data : {
-				action   : 'ultimatemember_check_username_exists',
-				username : value
-			},
-			complete: function(){
-				field.removeClass('um-searching-username');
-			},
-			success: function(exists){
-				if(parseInt(exists) > 0) {
-					field.removeClass('um-validate-username-unique').addClass('um-validate-username-exists');
-
-					if(!field.parents('.um-field').find('.um-field-error').length) {
-						field.parents('.um-field').append(error);
-					}
-
-					error.show();
-				} else {
-					field.removeClass('um-validate-username-exists').addClass('um-validate-username-unique');
-					error.hide();
-				}
-			}
-		});
-	});
-}
-
-jQuery(document).ready(function(){
-	if(jQuery('input[data-key=user_password],input[data-key=confirm_user_password]').length == 2) {
-		UM_check_password_matched();
-	}
-
-	/* 
-	if(jQuery('input[data-key=user_login]').length) {
-		UM_check_username();
-	}
-	*/
-});
-
 function UM_hide_menus() {
-
-		menu = jQuery('.um-dropdown');
-		menu.parents('div').find('a').removeClass('active');
-		menu.hide();
-
+	var menu = jQuery( '.um-dropdown' );
+	menu.parents('div' ).find('a').removeClass( 'active' );
+	menu.hide();
 }
 
-function UM_domenus(){
+function UM_domenus() {
 
-	jQuery('.um-dropdown').each(function(){
+	jQuery('.um-dropdown').each( function() {
 
 		var menu = jQuery(this);
 		var element = jQuery(this).attr('data-element');
 		var position = jQuery(this).attr('data-position');
 
-		jQuery(element).addClass('um-trigger-menu-on-'+menu.attr('data-trigger'));
+		jQuery( element ).addClass('um-trigger-menu-on-' + menu.attr( 'data-trigger' ) );
 
-		if ( jQuery(window).width() <= 1200 && element == 'div.um-profile-edit' ) {
-			position = 'lc';
+		if ( position === 'lc' && jQuery('html').attr('dir') === 'rtl' ){
+			position = 'rc';
 		}
 
-		if ( position == 'lc' ){
-
-			if ( 200 > jQuery(element).find('img').width() ) {
-				left_p = ( ( jQuery(element).width() - jQuery(element).find('img').width() ) / 2 ) + ( ( jQuery(element).find('img').width() - 200 ) / 2 );
+		if ( jQuery(window).width() <= 1200 && element === 'div.um-profile-edit' ) {
+			if ( jQuery('html').attr('dir') === 'rtl' ){
+				position = 'rc';
 			} else {
-				left_p = ( ( jQuery(element).width() - jQuery(element).find('img').width() ) / 2 );
+				position = 'lc';
 			}
 
-			top_ = parseInt( jQuery(element).find('a').css('top') );
+		}
 
-			if ( top_ ) {
-				top_p = jQuery(element).find('img').height() + 4 + top_;
-				left_gap = 4;
-			} else {
-				top_p = jQuery(element).find('img').height() + 4;
-				left_gap = 0;
-			}
+		if ( 200 > jQuery(element).find('img').width() ) {
+			left_p = ( ( jQuery(element).width() - jQuery(element).find('img').width() ) / 2 ) + ( ( jQuery(element).find('img').width() - 200 ) / 2 );
+		} else {
+			left_p = ( ( jQuery(element).width() - jQuery(element).find('img').width() ) / 2 );
+		}
 
-			if ( top_p == 4 && element == 'div.um-cover' ) {
-				top_p = jQuery(element).height() / 2 + ( menu.height() / 2 );
-			} else if ( top_p == 4 ) {
-				top_p = jQuery(element).height() + 20;
-			}
+		top_ = parseInt( jQuery(element).find('a').css('top') );
+
+		if ( top_ ) {
+			top_p = jQuery(element).find('img').height() + 4 + top_;
+		} else {
+			top_p = jQuery(element).find('img').height() + 4;
+		}
+
+		if ( top_p == 4 && element === 'div.um-cover' ) {
+			top_p = jQuery(element).height() / 2 + ( menu.height() / 2 );
+		} else if ( top_p == 4 ) {
+			top_p = jQuery(element).height() + 20;
+		}
+
+		if ( position === 'lc' ) {
 
 			gap_right = jQuery(element).width() + 17;
 			menu.css({
@@ -340,36 +83,37 @@ function UM_domenus(){
 				'right' : '-17px'
 			});
 
-		}
+		} else if ( position === 'rc' ) {
 
-		if ( position == 'bc' ){
+			gap_right = jQuery(element).width() + 25;
+			menu.css({
+				'top' : 0,
+				'width': 200,
+				'left': gap_right + 'px',
+				'right' : 'auto',
+				'text-align' : 'center'
+			});
 
-			if ( 200 > jQuery(element).find('img').width() ) {
-				left_p = ( ( jQuery(element).width() - jQuery(element).find('img').width() ) / 2 ) + ( ( jQuery(element).find('img').width() - 200 ) / 2 );
-			} else {
-				left_p = ( ( jQuery(element).width() - jQuery(element).find('img').width() ) / 2 );
-			}
+			menu.find('.um-dropdown-arr').find('i').removeClass().addClass('um-icon-arrow-left-b');
 
-			top_ = parseInt( jQuery(element).find('a').css('top') );
+			menu.find('.um-dropdown-arr').css({
+				'top' : '4px',
+				'left' : '-17px',
+				'right' : 'auto'
+			});
 
-			if ( top_ ) {
-				top_p = jQuery(element).find('img').height() + 4 + top_;
-				left_gap = 4;
-			} else {
-				top_p = jQuery(element).find('img').height() + 4;
-				left_gap = 0;
-			}
+		} else if ( position === 'bc' ) {
 
-			if ( top_p == 4 && element == 'div.um-cover' ) {
-				top_p = jQuery(element).height() / 2 + ( menu.height() / 2 );
-			} else if ( top_p == 4 ) {
-				top_p = jQuery(element).height() + 20;
+			var top_o = 0;
+			var top_offset = menu.data('top-offset');
+			if ( typeof top_offset !== 'undefined' ) {
+				top_o = top_offset*1;
 			}
 
 			menu.css({
-				'top' : top_p,
+				'top' : top_p + top_o,
 				'width': 200,
-				'left': left_p + left_gap,
+				'left': left_p,
 				'right' : 'auto',
 				'text-align' : 'center'
 			});
@@ -446,7 +190,7 @@ function um_responsive(){
 
 	});
 
-	jQuery('.um-cover, .um-member-cover').each(function(){
+	jQuery('.um-cover, .um-member-cover, .um-cover-e').each(function(){
 
 		var elem = jQuery(this);
 		var ratio = elem.data('ratio');
@@ -459,22 +203,9 @@ function um_responsive(){
 
 	});
 
-	jQuery('.um-members').each(function(){
-		UM_Member_Grid( jQuery(this) );
-	});
-
 	UM_domenus();
-
 }
 
-function UM_Member_Grid( container ) {
-	container.masonry({
-		itemSelector: '.um-member',
-		columnWidth: '.um-member',
-		gutter: '.um-gutter-sizer'
-	});
-
-}
 
 function initImageUpload_UM( trigger ) {
 
@@ -496,16 +227,24 @@ function initImageUpload_UM( trigger ) {
 			upload_text = '';
 		}
 
+		var user_id = 0;
+
+		if( jQuery('#um_upload_single:visible').data('user_id') ){
+	 		user_id = jQuery('#um_upload_single:visible').data('user_id');
+	 	}
+
 		trigger.uploadFile({
-			url: um_scripts.imageupload,
+			url: wp.ajax.settings.url,
 			method: "POST",
 			multiple: false,
 			formData: {
-				key: trigger.data('key'), 
-				set_id: trigger.data('set_id'), 
+				action: 'um_imageupload',
+				key: trigger.data('key'),
+				set_id: trigger.data('set_id'),
 				set_mode: trigger.data('set_mode'),
 				_wpnonce: trigger.data('nonce'),
-				timestamp: trigger.data('timestamp')
+				timestamp: trigger.data('timestamp'),
+				user_id: user_id
 			 },
 			fileName: trigger.data('key'),
 			allowedTypes: trigger.data('allowed_types'),
@@ -520,36 +259,34 @@ function initImageUpload_UM( trigger ) {
 			showDone: false,
 			showFileCounter: false,
 			showStatusAfterSuccess: true,
+			returnType: 'json',
 			onSubmit:function(files){
 
 				trigger.parents('.um-modal-body').find('.um-error-block').remove();
 
 			},
-			onSuccess:function(files,data,xhr){
+			onSuccess:function( files, response, xhr ){
 
 				trigger.selectedFiles = 0;
 
-				try{
-				data = jQuery.parseJSON(data);
-				} catch (e) {
-				   console.log( e, data );
-				    return;
-				}
+				if ( response.success && response.success == false || typeof response.data.error !== 'undefined' ) {
 
-				if (data.error && data.error != '') {
-
-					trigger.parents('.um-modal-body').append('<div class="um-error-block">'+data.error+'</div>');
+					trigger.parents('.um-modal-body').append('<div class="um-error-block">'+response.data.error+'</div>');
 					trigger.parents('.um-modal-body').find('.upload-statusbar').hide(0);
 					um_modal_responsive();
 
 				} else {
-
-					jQuery.each( data, function(key, value) {
-
+					
+					jQuery.each( response.data, function( i, d ) {
+					
 						var img_id = trigger.parents('.um-modal-body').find('.um-single-image-preview img');
 						var img_id_h = trigger.parents('.um-modal-body').find('.um-single-image-preview');
 
-						img_id.attr("src", value);
+						var cache_ts = new Date();
+				
+						img_id.attr("src", d.url + "?"+cache_ts.getTime() );
+						img_id.data("file", d.file );
+
 						img_id.load(function(){
 
 							trigger.parents('.um-modal-body').find('.um-modal-btn.um-finish-upload.disabled').removeClass('disabled');
@@ -563,6 +300,9 @@ function initImageUpload_UM( trigger ) {
 
 				}
 
+			},
+			onError: function ( e ){
+				console.log( e );
 			}
 		});
 
@@ -588,13 +328,19 @@ function initFileUpload_UM( trigger ) {
 			upload_text = '';
 		}
 
+		if( jQuery('#um_upload_single:visible').data('user_id') ){
+	 		user_id = jQuery('#um_upload_single:visible').data('user_id');
+	 	}
+
 		trigger.uploadFile({
-			url: um_scripts.fileupload,
+			url: wp.ajax.settings.url,
 			method: "POST",
 			multiple: false,
 			formData: {
+				action: 'um_fileupload',
 				key: trigger.data('key'), 
 				set_id: trigger.data('set_id'), 
+				user_id: trigger.data('user_id'),
 				set_mode: trigger.data('set_mode'),
 				_wpnonce: trigger.data('nonce'),
 				timestamp: trigger.data('timestamp')
@@ -617,14 +363,13 @@ function initFileUpload_UM( trigger ) {
 				trigger.parents('.um-modal-body').find('.um-error-block').remove();
 
 			},
-			onSuccess:function(files,data,xhr){
+			onSuccess:function( files, response ,xhr ){
 
 				trigger.selectedFiles = 0;
 
-				data = jQuery.parseJSON(data);
-				if (data.error && data.error != '') {
+				if ( response.success && response.success == false || typeof response.data.error !== 'undefined' ) {
 
-					trigger.parents('.um-modal-body').append('<div class="um-error-block">'+data.error+'</div>');
+					trigger.parents('.um-modal-body').append('<div class="um-error-block">'+ response.data.error+'</div>');
 					trigger.parents('.um-modal-body').find('.upload-statusbar').hide(0);
 					
 					setTimeout(function(){
@@ -633,20 +378,33 @@ function initFileUpload_UM( trigger ) {
 
 				} else {
 
-					jQuery.each( data, function(key, value) {
+					jQuery.each(  response.data , function(key, value) {
 
 						trigger.parents('.um-modal-body').find('.um-modal-btn.um-finish-upload.disabled').removeClass('disabled');
 						trigger.parents('.um-modal-body').find('.ajax-upload-dragdrop,.upload-statusbar').hide(0);
 						trigger.parents('.um-modal-body').find('.um-single-file-preview').show(0);
 
-						if (key == 'icon') {
-							trigger.parents('.um-modal-body').find('.um-single-fileinfo i').removeClass().addClass(value);
+						if ( key == 'icon' ) {
+					
+							trigger.parents('.um-modal-body').find('.um-single-fileinfo i').removeClass().addClass( value );
+					
 						} else if ( key == 'icon_bg' ) {
+							
 							trigger.parents('.um-modal-body').find('.um-single-fileinfo span.icon').css({'background-color' : value } );
+						
 						} else if ( key == 'filename' ) {
-							trigger.parents('.um-modal-body').find('.um-single-fileinfo span.filename').html(value);
-						} else {
+							
+							trigger.parents('.um-modal-body').find('.um-single-fileinfo a').attr('data-file', value );
+							
+						}else if( key == 'original_name' ){
+
+							trigger.parents('.um-modal-body').find('.um-single-fileinfo a').attr('data-orignal-name', value );
+							trigger.parents('.um-modal-body').find('.um-single-fileinfo span.filename').html( value );
+							
+						} else if ( key == 'url' ) {
+							
 							trigger.parents('.um-modal-body').find('.um-single-fileinfo a').attr('href', value);
+						
 						}
 
 					});
@@ -657,6 +415,9 @@ function initFileUpload_UM( trigger ) {
 
 				}
 
+			},
+			onError: function ( e ){
+				console.log( e );
 			}
 		});
 
@@ -827,6 +588,14 @@ function um_new_modal( id, size, isPhoto, source ){
 
 function um_modal_responsive() {
 
+	var w = window.innerWidth
+		|| document.documentElement.clientWidth
+		|| document.body.clientWidth;
+
+	var h = window.innerHeight
+		|| document.documentElement.clientHeight
+		|| document.body.clientHeight;
+
 	var modal = jQuery('.um-modal:visible');
 	var photo_modal = jQuery('.um-modal-body.photo:visible');
 
@@ -836,8 +605,8 @@ function um_modal_responsive() {
 		modal.removeClass('uimob500');
 
 		var photo_ = jQuery('.um-modal-photo img');
-		var photo_maxw = jQuery(window).width() - 60;
-		var photo_maxh = jQuery(window).height() - ( jQuery(window).height() * 0.25 );
+		var photo_maxw = w - 60;
+		var photo_maxh = h - ( h * 0.25 );
 
 		photo_.css({'opacity': 0});
 		photo_.css({'max-width': photo_maxw });
@@ -850,44 +619,42 @@ function um_modal_responsive() {
 
 		photo_.animate({'opacity' : 1}, 1000);
 
-		var half_gap = ( jQuery(window).height() - modal.innerHeight() ) / 2 + 'px';
+		var half_gap = ( h - modal.innerHeight() ) / 2 + 'px';
 		modal.animate({ 'bottom' : half_gap }, 300);
 
 	} else if ( modal.length ) {
 
-		var element_width = jQuery(window).width();
-
 		modal.removeClass('uimob340');
 		modal.removeClass('uimob500');
 
-		if ( element_width <= 340 ) {
+		if ( w <= 340 ) {
 
 			modal.addClass('uimob340');
 			initCrop_UM();
 			modal.animate({ 'bottom' : 0 }, 300);
 
-		} else if ( element_width <= 500 ) {
+		} else if ( w <= 500 ) {
 
 			modal.addClass('uimob500');
 			initCrop_UM();
 			modal.animate({ 'bottom' : 0 }, 300);
 
-		} else if ( element_width <= 800 ) {
+		} else if ( w <= 800 ) {
 
 			initCrop_UM();
-			var half_gap = ( jQuery(window).height() - modal.innerHeight() ) / 2 + 'px';
+			var half_gap = ( h - modal.innerHeight() ) / 2 + 'px';
 			modal.animate({ 'bottom' : half_gap }, 300);
 
-		} else if ( element_width <= 960 ) {
+		} else if ( w <= 960 ) {
 
 			initCrop_UM();
-			var half_gap = ( jQuery(window).height() - modal.innerHeight() ) / 2 + 'px';
+			var half_gap = ( h - modal.innerHeight() ) / 2 + 'px';
 			modal.animate({ 'bottom' : half_gap }, 300);
 
-		} else if ( element_width > 960 ) {
+		} else if ( w > 960 ) {
 
 			initCrop_UM();
-			var half_gap = ( jQuery(window).height() - modal.innerHeight() ) / 2 + 'px';
+			var half_gap = ( h - modal.innerHeight() ) / 2 + 'px';
 			modal.animate({ 'bottom' : half_gap }, 300);
 
 		}
@@ -896,8 +663,7 @@ function um_modal_responsive() {
 
 }
 
-function um_remove_modal(){
-
+function um_remove_modal() {
 	jQuery('img.cropper-hidden').cropper('destroy');
 
 	jQuery('body,html,textarea').css("overflow", "auto");
@@ -910,11 +676,15 @@ function um_remove_modal(){
 }
 
 function um_modal_size( aclass ) {
+	
 	jQuery('.um-modal:visible').addClass(aclass);
+
 }
 
 function um_modal_add_attr( id, value ) {
+	
 	jQuery('.um-modal:visible').data( id, value );
+
 }
 
 function prepare_Modal() {
@@ -928,6 +698,8 @@ function prepare_Modal() {
 
 function remove_Modal() {
 	if ( jQuery('.um-popup-overlay').length ) {
+		jQuery( document ).trigger( 'um_before_modal_removed' );
+
 		jQuery('.tipsy').remove();
 		jQuery('.um-popup').empty().remove();
 		jQuery('.um-popup-overlay').empty().remove();
@@ -948,7 +720,7 @@ function show_Modal( contents ) {
 function responsive_Modal() {
 	if ( jQuery('.um-popup-overlay').length ) {
 
-		ag_height = jQuery(window).height() - jQuery('.um-popup um-popup-header').outerHeight() - jQuery('.um-popup .um-popup-footer').outerHeight() - 80;
+		ag_height = jQuery(window).height() - jQuery('.um-popup .um-popup-header').outerHeight() - jQuery('.um-popup .um-popup-footer').outerHeight() - 80;
 		if ( ag_height > 350 ) {
 			ag_height = 350;
 		}
@@ -956,12 +728,10 @@ function responsive_Modal() {
 		if ( jQuery('.um-popup-autogrow:visible').length ) {
 
 			jQuery('.um-popup-autogrow:visible').css({'height': ag_height + 'px'});
-			jQuery('.um-popup-autogrow:visible').mCustomScrollbar({ theme:"dark-3", mouseWheelPixels:500 }).mCustomScrollbar("scrollTo", "bottom",{ scrollInertia:0} );
 
 		} else if ( jQuery('.um-popup-autogrow2:visible').length ) {
 
 			jQuery('.um-popup-autogrow2:visible').css({'max-height': ag_height + 'px'});
-			jQuery('.um-popup-autogrow2:visible').mCustomScrollbar({ theme:"dark-3", mouseWheelPixels:500 });
 
 		}
 	}
@@ -988,10 +758,16 @@ jQuery(function(){
 			  }
 	});
 
-	// Fixed touchscreen sensitivity
-	jQuery(document).on('touchend', function(){
-		//jQuery(".select2-search, .select2-focusser").remove();
-	})
+	if( jQuery('input[data-key=user_password],input[data-key=confirm_user_password]').length == 2 ) {
+		UM_check_password_matched();
+	}
 
 });
 
+
+function um_selected( selected, current ){
+
+	if( selected == current ){
+		return "selected='selected'";
+	}
+}
