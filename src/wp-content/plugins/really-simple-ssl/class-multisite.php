@@ -50,14 +50,26 @@ if (!class_exists('rsssl_multisite')) {
 
             if (is_network_admin()) {
                 add_action('network_admin_notices', array($this, 'show_notices'), 10);
+
                 add_action('admin_print_footer_scripts', array($this, 'insert_dismiss_success'));
+                add_action('admin_print_footer_scripts', array($this, 'insert_dismiss_wildcard_warning'));
             }
 
             add_action('wp_ajax_dismiss_success_message_multisite', array($this, 'dismiss_success_message_callback'));
+            add_action('wp_ajax_dismiss_wildcard_warning', array($this, 'dismiss_wildcard_message_callback'));
             add_action('wp_ajax_rsssl_pro_dismiss_pro_option_notice', array($this, 'dismiss_pro_option_notice'));
             add_action("network_admin_notices", array($this, 'show_pro_option_notice'));
             add_action("rsssl_show_network_tab_settings", array($this, 'settings_tab'));
-            add_action('wpmu_new_blog', array($this, 'maybe_activate_ssl_in_new_blog'), 10, 6);
+
+            //If WP version is 5.1 or higher, use wp_insert_site hook for multisite SSL activation in new blogs
+            //if(version_compare(get_bloginfo('version'),'5.1', '>=') ) {
+            //    add_action('wp_insert_site', array($this, 'maybe_activate_ssl_in_new_blog'), 20, 1);
+            //} else {
+                add_action('wpmu_new_blog', array($this, 'maybe_activate_ssl_in_new_blog_deprecated'), 10, 6);
+            //}
+            //Listen for run_ssl_process hook switch
+            add_action('admin_init', array($this, 'listen_for_ssl_conversion_hook_switch'), 40);
+
 
         }
 
@@ -66,14 +78,16 @@ if (!class_exists('rsssl_multisite')) {
             return self::$_this;
         }
 
+
         /*
 
             When a new site is added, maybe activate SSL as well.
 
         */
 
-        public function maybe_activate_ssl_in_new_blog($blog_id, $user_id, $domain, $path, $site_id, $meta)
+        public function maybe_activate_ssl_in_new_blog_deprecated($blog_id, $user_id=false, $domain=false, $path=false, $site_id=false, $meta=false)
         {
+
             if ($this->ssl_enabled_networkwide) {
                 $site = get_blog_details($blog_id);
                 $this->switch_to_blog_bw_compatible($site);
@@ -82,10 +96,26 @@ if (!class_exists('rsssl_multisite')) {
             }
         }
 
+        /**
+         * Activate SSl in new block
+         * @since 3.1.6
+         * @param $new_site
+         * @return void
+         */
+
+//        public function maybe_activate_ssl_in_new_blog($site)
+//        {
+//
+//            if ($this->ssl_enabled_networkwide) {
+//                $this->switch_to_blog_bw_compatible($site);
+//                RSSSL()->really_simple_ssl->activate_ssl();
+//                restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
+//            }
+//        }
+
 
         public function networkwide_choice_notice()
         {
-
             if ($this->plugin_network_wide_active() && !$this->selected_networkwide_or_per_site) {
                 add_action('network_admin_notices', array($this, 'show_notice_activate_networkwide'), 10);
             }
@@ -109,12 +139,13 @@ if (!class_exists('rsssl_multisite')) {
 
 
         /**
+         * @param $networkwide
+         *
          * On plugin activation, we can check if it is networkwide or not.
          *
          * @since  2.1
          *
          * @access public
-         *
          */
 
         public function activate($networkwide)
@@ -242,19 +273,17 @@ if (!class_exists('rsssl_multisite')) {
 
             $this->save_options();
 
-            if ($this->ssl_enabled_networkwide) {
+            if ($this->ssl_enabled_networkwide && !$prev_ssl_enabled_networkwide) {
+                //reset
+                $this->start_ssl_activation();
                 //enable SSL on all  sites on the network
-                $this->activate_ssl_networkwide();
-            } elseif ($prev_ssl_enabled_networkwide != $this->ssl_enabled_networkwide) {
-                //if we switch to per page, we deactivate SSL on all pages first, but only if the setting was changed.
-                $sites = $this->get_sites_bw_compatible();
-                foreach ($sites as $site) {
-                    $this->switch_to_blog_bw_compatible($site);
-                    RSSSL()->really_simple_ssl->deactivate_ssl();
-                    restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
-                }
             }
 
+            if (!$this->ssl_enabled_networkwide && $prev_ssl_enabled_networkwide ) {
+                //if we switch to per page, we deactivate SSL on all pages first, but only if the setting was changed.
+                $this->start_ssl_deactivation();
+
+            }
 
             // At last we redirect back to our options page.
             wp_redirect(add_query_arg(array('page' => $this->page_slug, 'updated' => 'true'), network_admin_url('settings.php')));
@@ -272,7 +301,7 @@ if (!class_exists('rsssl_multisite')) {
 
 
         /**
-         * Give the user an option to activate network wide or not.
+         * Give the user an option to activate networkwide or not.
          * Needs to be called after detect_configuration function
          *
          * @since  2.3
@@ -283,12 +312,16 @@ if (!class_exists('rsssl_multisite')) {
 
         public function show_notice_activate_networkwide()
         {
+            //prevent showing the review on edit screen, as gutenberg removes the class which makes it editable.
+            $screen = get_current_screen();
+            if ( $screen->parent_base === 'edit' ) return;
+
             //if no SSL was detected, don't activate it yet.
 
             if (!RSSSL()->really_simple_ssl->site_has_ssl) {
-                $current_url = "https://" . $_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"]
+                $current_url = esc_url_raw("https://" . $_SERVER["HTTP_HOST"] . $_SERVER["REQUEST_URI"]);
                 ?>
-                <div id="message" class="error fade notice activate-ssl">
+                <div id="message" class="error notice activate-ssl">
                     <p><?php _e("No SSL was detected. If you do have an SSL certificate, try to reload this page over https by clicking this link:", "really-simple-ssl"); ?>
                         &nbsp;<a
                                 href="<?php echo $current_url ?>"><?php _e("reload over https.", "really-simple-ssl"); ?></a>
@@ -302,7 +335,7 @@ if (!class_exists('rsssl_multisite')) {
             <?php if (RSSSL()->really_simple_ssl->site_has_ssl) {
             if (is_main_site(get_current_blog_id()) && RSSSL()->really_simple_ssl->wpconfig_ok()) {
                 ?>
-                <div id="message" class="updated fade notice activate-ssl">
+                <div id="message" class="updated notice activate-ssl">
                     <h1><?php _e("Choose your preferred setup", "really-simple-ssl"); ?></h1>
                     <?php _e("Some things can't be done automatically. Before you migrate, please check for: ", 'really-simple-ssl'); ?>
                     <p>
@@ -373,7 +406,6 @@ if (!class_exists('rsssl_multisite')) {
 
             if (!$this->plugin_network_wide_active()) return;
 
-
             if (isset($_POST['rsssl_do_activate_ssl_networkwide'])) {
 
                 $this->selected_networkwide_or_per_site = true;
@@ -382,7 +414,7 @@ if (!class_exists('rsssl_multisite')) {
                 $this->save_options();
 
                 //enable SSL on all sites on the network
-                $this->activate_ssl_networkwide();
+                $this->start_ssl_activation();
 
             }
 
@@ -417,29 +449,133 @@ if (!class_exists('rsssl_multisite')) {
         }
 
 
-        public function activate_ssl_networkwide()
-        {
+        public function ssl_process_active(){
 
-            //set all sites as enabled
-            $sites = $this->get_sites_bw_compatible();
+            if (get_site_option('rsssl_ssl_activation_active')){
+                return true;
+            }
 
-            foreach ($sites as $site) {
-                $this->switch_to_blog_bw_compatible($site);
-                RSSSL()->really_simple_ssl->activate_ssl();
-                restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
+            if ( get_site_option('rsssl_ssl_deactivation_active')){
+                return true;
+            }
+
+            return false;
+        }
+
+        public function run_ssl_process(){
+            // if (!get_site_option('rsssl_run')) return;
+
+            if (get_site_option('rsssl_ssl_activation_active')){
+                $this->activate_ssl_networkwide();
+            }
+
+            if (get_site_option('rsssl_ssl_deactivation_active')){
+                $this->deactivate_ssl_networkwide();
+            }
+
+            update_site_option('rsssl_run', false);
+
+        }
+
+        public function redirect_to_network_settings_page_after_activation() {
+	        $url = add_query_arg( array(
+		        "page" => "really-simple-ssl",
+	        ), network_admin_url( "settings.php" ) );
+	        wp_safe_redirect( $url );
+	        exit;
+        }
+
+        public function get_process_completed_percentage(){
+            $complete_count = get_site_option('rsssl_siteprocessing_progress');
+
+            $percentage = round(($complete_count/$this->get_total_blog_count())*100,0);
+            if ($percentage > 99) $percentage = 99;
+            return $percentage;
+        }
+
+        public function start_ssl_activation(){
+            update_site_option('rsssl_siteprocessing_progress', 0);
+            update_site_option('rsssl_ssl_activation_active', true);
+        }
+
+        public function end_ssl_activation(){
+            update_site_option('rsssl_ssl_activation_active', false);
+            update_site_option('run_ssl_process_hook_switched', false);
+        }
+
+        public function start_ssl_deactivation(){
+            update_site_option('rsssl_siteprocessing_progress', 0);
+            update_site_option('rsssl_ssl_deactivation_active', true);
+        }
+
+        public function end_ssl_deactivation(){
+            update_site_option('rsssl_ssl_deactivation_active', false);
+            update_site_option('run_ssl_process_hook_switched', false);
+        }
+
+        public function deactivate_ssl_networkwide(){
+            //run chunked
+            $nr_of_sites = 200;
+            $current_offset = get_site_option('rsssl_siteprocessing_progress');
+
+            //set batch of sites
+            $sites = $this->get_sites_bw_compatible($current_offset, $nr_of_sites);
+
+            //if no sites are found, we assume we're done.
+            if (count($sites)==0) {
+                $this->end_ssl_deactivation();
+            } else {
+                foreach ($sites as $site) {
+                    $this->switch_to_blog_bw_compatible($site);
+                    RSSSL()->really_simple_ssl->deactivate_ssl();
+                    restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
+                    update_site_option('rsssl_siteprocessing_progress', $current_offset+$nr_of_sites);
+                }
             }
 
         }
 
 
+        public function activate_ssl_networkwide()
+        {
+
+	        //run chunked
+            $nr_of_sites = 200;
+            $current_offset = get_site_option('rsssl_siteprocessing_progress');
+
+            //set batch of sites
+            $sites = $this->get_sites_bw_compatible($current_offset, $nr_of_sites);
+
+            //if no sites are found, we assume we're done.
+            if (count($sites)==0) {
+                $this->end_ssl_activation();
+            } else {
+                foreach ($sites as $site) {
+                    $this->switch_to_blog_bw_compatible($site);
+                    RSSSL()->really_simple_ssl->activate_ssl();
+                    restore_current_blog(); //switches back to previous blog, not current, so we have to do it each loop
+                    update_site_option('rsssl_siteprocessing_progress', $current_offset+$nr_of_sites);
+                }
+            }
+	        $this->redirect_to_network_settings_page_after_activation();
+        }
+
+
         //change deprecated function depending on version.
-        public function get_sites_bw_compatible()
+        /*
+         * Offset is used to chunk the site loops.
+         * But offset is not used in the pre 4.6 function.
+         *
+         *
+         * */
+        public function get_sites_bw_compatible($offset=0, $nr_of_sites=100)
         {
             global $wp_version;
 
-            //make sure all blogs are returned, not only the first 100.
             $args = array(
-                'number' => get_blog_count()
+                'number' => $nr_of_sites,
+                'offset' => $offset,
+                'public' => 1,
             );
             $sites = ($wp_version >= 4.6) ? get_sites($args) : wp_get_sites();
             return $sites;
@@ -462,7 +598,6 @@ if (!class_exists('rsssl_multisite')) {
 
         public function deactivate()
         {
-
             $options = get_site_option("rlrsssl_network_options");
             $options["selected_networkwide_or_per_site"] = false;
             $options["wp_redirect"] = false;
@@ -478,7 +613,8 @@ if (!class_exists('rsssl_multisite')) {
             unset($options["ssl_enabled_networkwide"]);
             update_site_option("rlrsssl_network_options", $options);
 
-            $sites = $this->get_sites_bw_compatible();
+            //because the deactivation should be a one click procedure, chunking this would cause dificulties
+            $sites = $this->get_sites_bw_compatible(0, $this->get_total_blog_count());
             foreach ($sites as $site) {
                 $this->switch_to_blog_bw_compatible($site);
                 RSSSL()->really_simple_ssl->deactivate_ssl();
@@ -557,7 +693,7 @@ if (!class_exists('rsssl_multisite')) {
             if (!is_multisite()) return FALSE;
             //we check this manually, as the SUBDOMAIN_INSTALL constant of wordpress might return false for domain mapping configs
             $is_subfolder = FALSE;
-            $sites = $this->get_sites_bw_compatible();
+            $sites = $this->get_sites_bw_compatible(0, 10);
             foreach ($sites as $site) {
                 $this->switch_to_blog_bw_compatible($site);
                 if ($this->is_subfolder(home_url())) {
@@ -579,6 +715,7 @@ if (!class_exists('rsssl_multisite')) {
          *
          * @access private
          *
+         * @return bool
          */
 
         public function is_subfolder($domain)
@@ -602,6 +739,27 @@ if (!class_exists('rsssl_multisite')) {
         }
 
         /**
+         *
+         * Sometimes conversion of websites hangs on 0%. If user clicks the link, the hook where run_ssl_process (multisite-cron.php)
+         * fires on will be switched to admin_init
+         *
+         */
+
+        public function listen_for_ssl_conversion_hook_switch()
+        {
+                //check if we are on ssl settings page
+                if (!$this->is_settings_page()) return;
+                //check user role
+                if (!current_user_can('manage_options')) return;
+                //check nonce
+                if (!isset($_GET['token']) || (!wp_verify_nonce($_GET['token'], 'run_ssl_to_admin_init'))) return;
+                //check for action
+                if (isset($_GET["action"]) && $_GET["action"] == 'ssl_conversion_hook_switch') {
+                    update_site_option('run_ssl_process_hook_switched', true);
+                }
+        }
+
+        /**
          * Show notices
          *
          * @since  2.0
@@ -612,17 +770,47 @@ if (!class_exists('rsssl_multisite')) {
 
         public function show_notices()
         {
+            //prevent showing the review on edit screen, as gutenberg removes the class which makes it editable.
+            $screen = get_current_screen();
+            if ( $screen->parent_base === 'edit' ) return;
 
             if (isset(RSSSL()->really_simple_ssl->errors["DEACTIVATE_FILE_NOT_RENAMED"])) {
                 ?>
-                <div id="message" class="error fade notice is-dismissible rlrsssl-fail">
+                <div id="message" class="error notice is-dismissible rlrsssl-fail">
                     <h1>
                         <?php _e("Major security issue!", "really-simple-ssl"); ?>
                     </h1>
                     <p>
-                        <?php _e("The 'force-deactivate.php' file has to be renamed to .txt. Otherwise your ssl can be deactived by anyone on the internet.", "really-simple-ssl"); ?>
+                        <?php _e("The 'force-deactivate.php' file has to be renamed to .txt. Otherwise your ssl can be deactivated by anyone on the internet.", "really-simple-ssl"); ?>
                     </p>
                     <a href="options-general.php?page=rlrsssl_really_simple_ssl"><?php echo __("Check again", "really-simple-ssl"); ?></a>
+                </div>
+                <?php
+            }
+
+            /*
+             * ssl switch for sites processing active
+             */
+
+            if ($this->ssl_process_active()) {
+                ?>
+                <div id="message" class="error notice is-dismissible rlrsssl-fail">
+                    <p>
+
+                        <?php
+                        //In some cases the rsssl_ssl_process_hook hook can fail. Therefore we offer the option to switch the hook to admin_init when the conversion is stuck.
+                        $token = wp_create_nonce('run_ssl_to_admin_init');
+                        $run_ssl_process_hook_switch_link = network_admin_url("settings.php?page=really-simple-ssl&action=ssl_conversion_hook_switch&token=" . $token);
+
+                        $link_open = '<a target="_self" href="' . $run_ssl_process_hook_switch_link . '">';
+                        $link_close = '</a>';
+                        ?>
+
+                        <?php printf(__("Conversion of websites %s percent complete.", "really-simple-ssl"), $this->get_process_completed_percentage()); ?>
+                        <?php _e("You have just started enabling or disabling SSL on multiple websites at once, and this process is not completed yet. Please refresh this page to check if the process has finished. It will proceed in the background.", "really-simple-ssl"); ?>
+                        <?php printf(__("If the conversion does not proceed after a few minutes, click %shere%s to force the conversion process.", "really-simple-ssl"), $link_open, $link_close); ?>
+
+                    </p>
                 </div>
                 <?php
             }
@@ -634,7 +822,7 @@ if (!class_exists('rsssl_multisite')) {
             if ($this->selected_networkwide_or_per_site && !get_site_option("rsssl_success_message_shown")) {
 
                 ?>
-                <div id="message" class="updated fade notice is-dismissible rlrsssl-multisite-success">
+                <div id="message" class="updated notice is-dismissible rlrsssl-multisite-success">
                     <p>
                         <?php _e("SSL activated!", "really-simple-ssl"); ?>&nbsp;
                         <?php
@@ -643,6 +831,7 @@ if (!class_exists('rsssl_multisite')) {
                         else
                             _e("SSL was activated per site.", "really-simple-ssl");
                         ?>
+
                         <?php _e("Don't forget to change your settings in Google Analytics and Webmaster tools.", "really-simple-ssl"); ?>
                         &nbsp;
                         <a target="_blank"
@@ -656,7 +845,7 @@ if (!class_exists('rsssl_multisite')) {
                 //with no server variables, the website could get into a redirect loop.
                 if (RSSSL()->really_simple_ssl->no_server_variable) {
                     ?>
-                    <div id="message" class="error fade notice">
+                    <div id="message" class="error notice">
                         <p>
                             <?php _e('You run a Multisite installation with subfolders, which prevents this plugin from fixing your missing server variable in the wp-config.php.', 'really-simple-ssl'); ?>
                             <?php _e('Because the $_SERVER["HTTPS"] variable is not set, your website may experience redirect loops.', 'really-simple-ssl'); ?>
@@ -669,7 +858,7 @@ if (!class_exists('rsssl_multisite')) {
 
             if (!RSSSL()->really_simple_ssl->ssl_enabled && !$this->is_multisite_subfolder_install() && !RSSSL()->rsssl_certificate->is_wildcard() && !get_site_option("rsssl_wildcard_message_shown")) {
                 ?>
-                <div id="message" class="error fade notice is-dismissible">
+                <div id="message" class="error notice is-dismissible rlrsssl-multisite-wildcard-warning">
                     <p>
                         <?php _e("You run a Multisite installation with subdomains, but your site doesn't have a wildcard certificate.", 'really-simple-ssl'); ?>
                         <?php _e("This leads to issues when activating SSL networkwide since subdomains will be forced over SSL as well while they don't have a valid certificate.", 'really-simple-ssl'); ?>
@@ -715,6 +904,31 @@ if (!class_exists('rsssl_multisite')) {
             }
         }
 
+        public function insert_dismiss_wildcard_warning()
+        {
+            if ($this->selected_networkwide_or_per_site && !get_site_option("rsssl_success_message_shown")) {
+                $ajax_nonce = wp_create_nonce("really-simple-ssl-dismiss");
+                ?>
+                <script type='text/javascript'>
+                    jQuery(document).ready(function ($) {
+                        $(".rlrsssl-multisite-wildcard-warning.notice.is-dismissible").on("click", ".notice-dismiss", function (event) {
+
+                            var data = {
+                                'action': 'dismiss_wildcard_warning',
+                                'security': '<?php echo $ajax_nonce; ?>'
+                            };
+
+                            $.post(ajaxurl, data, function (response) {
+
+                            });
+                        });
+                    });
+                </script>
+                <?php
+            }
+        }
+
+
         /**
          * Process the ajax dismissal of the success message.
          *
@@ -726,22 +940,34 @@ if (!class_exists('rsssl_multisite')) {
 
         public function dismiss_success_message_callback()
         {
-//nonce check fails if url is changed to SSL.
-//check_ajax_referer( 'really-simple-ssl-dismiss', 'security' );
+            if (!current_user_can($this->capability) ) return;
+            check_ajax_referer('really-simple-ssl-dismiss', 'security');
+
             update_site_option("rsssl_success_message_shown", true);
             wp_die();
         }
 
-
         public function dismiss_pro_option_notice()
         {
-            check_ajax_referer('rsssl-pro-dismiss-pro-option-notice', 'nonce');
+            if (!current_user_can($this->capability) ) return;
+            check_ajax_referer('rsssl-pro-dismiss-pro-option-notice' ,'security');
+
             update_option('rsssl_pro_pro_option_notice_dismissed', true);
+            wp_die();
+        }
+
+        public function dismiss_wildcard_message_callback()
+        {
+            if (!current_user_can($this->capability) ) return;
+            check_ajax_referer('really-simple-ssl-dismiss', 'security');
+
+            update_site_option("rsssl_wildcard_message_shown", true);
             wp_die();
         }
 
         public function dismiss_pro_option_script()
         {
+
             $ajax_nonce = wp_create_nonce("rsssl-pro-dismiss-pro-option-notice");
             ?>
             <script type='text/javascript'>
@@ -750,7 +976,7 @@ if (!class_exists('rsssl_multisite')) {
                     $(".rsssl-pro-dismiss-notice.notice.is-dismissible").on("click", ".notice-dismiss", function (event) {
                         var data = {
                             'action': 'rsssl_pro_dismiss_pro_option_notice',
-                            'nonce': '<?php echo $ajax_nonce; ?>'
+                            'security': '<?php echo $ajax_nonce; ?>'
                         };
 
                         $.post(ajaxurl, data, function (response) {
@@ -765,16 +991,22 @@ if (!class_exists('rsssl_multisite')) {
 
         public function show_pro_option_notice()
         {
+            //prevent showing the review on edit screen, as gutenberg removes the class which makes it editable.
+            $screen = get_current_screen();
+            if ( $screen->parent_base === 'edit' ) return;
+
             if (!$this->is_settings_page()) return;
 
             $dismissed = get_option('rsssl_pro_pro_option_notice_dismissed');
+
             if (!$dismissed) {
+
+                add_action('admin_print_footer_scripts', array($this, 'dismiss_pro_option_script'));
 
                 if (defined('rsssl_pro_version')) {
                     if (!defined('rsssl_pro_ms_version')) {
-                        add_action('admin_print_footer_scripts', array($this, 'dismiss_pro_option_script'));
                         ?>
-                        <div id="message" class="updated fade notice is-dismissible rsssl-pro-dismiss-notice">
+                        <div id="message" class="updated notice is-dismissible rsssl-pro-dismiss-notice">
                             <p>
                                 <?php echo sprintf(__('You are running Really Simple SSL pro. A dedicated add-on for multisite has been released. If you want more options to have full control over your multisite network, you can ask for a discount code to %supgrade%s your license to a multisite license.', 'really-simple-ssl'), '<a href="https://really-simple-ssl.com/contact" title="Really Simple SSL">', '</a>') ?>
                             </p>
@@ -783,7 +1015,7 @@ if (!class_exists('rsssl_multisite')) {
                     }
                 } else {
                     ?>
-                    <div id="message" class="updated fade notice is-dismissible rsssl-pro-dismiss-notice">
+                    <div id="message" class="updated notice is-dismissible rsssl-pro-dismiss-notice">
                         <p>
                             <?php echo sprintf(__('If you want more options to have full control over your multisite network, you can %supgrade%s your license to a multisite license, or dismiss this message', 'really-simple-ssl'), '<a href="https://really-simple-ssl.com/pro-multisite" title="Really Simple SSL">', '</a>') ?>
                         </p>
@@ -825,6 +1057,23 @@ if (!class_exists('rsssl_multisite')) {
                 }
                 echo '</h2>';
             }
+        }
+
+        public function get_total_blog_count()
+        {
+            //Get the total blog count from all multisite networks
+            $networks = get_networks();
+
+            $total_blog_count = 0;
+
+            foreach($networks as $network){
+
+                $network_id = ($network->__get('id'));
+                $blog_count = get_blog_count($network_id);
+                $total_blog_count += $blog_count;
+            }
+
+            return $total_blog_count;
         }
 
     } //class closure

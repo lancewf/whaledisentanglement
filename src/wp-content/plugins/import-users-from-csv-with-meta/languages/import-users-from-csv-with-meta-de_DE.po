@@ -18,7 +18,7 @@ msgstr ""
 "esc_attr_e;esc_attr_x:1,2c;esc_attr__;_ex:1,2c;_nx:4c,1,2;_nx_noop:4c,1,2;"
 "_x:1,2c;_n:1,2;_n_noop:1,2;__ngettext:1,2;__ngettext_noop:1,2;_c,_nc:4c,1,2\n"
 "X-Poedit-Basepath: ..\n"
-"X-Generator: Poedit 1.8.11\n"
+"X-Generator: Poedit 1.8.9\n"
 "Last-Translator: \n"
 "Language: de_DE\n"
 "X-Poedit-SearchPath-0: .\n"
@@ -343,7 +343,7 @@ msgstr ""
 #: importer.php:529 import-users-from-csv-with-meta.php:96
 #: import-users-from-csv-with-meta.php:202
 msgid "Import users from CSV"
-msgstr "Benitzer aus CSV importieren"
+msgstr "Benutzer aus CSV importieren"
 
 #: importer.php:539
 msgid "Update existing users?"
@@ -534,7 +534,7 @@ msgstr ""
 
 #: importer.php:704
 msgid "Send mail"
-msgstr "Main senden"
+msgstr "Mail senden"
 
 #: importer.php:706
 msgid "Do you wish to send a mail with credentials and other data?"
@@ -849,12 +849,12 @@ msgid "WordPress automatic emails users updated"
 msgstr "Automatische WordPress Emails angepasst"
 
 #: importer.php:947
-msgid "Send automattic WordPress emails?"
+msgid "Send automatic WordPress emails?"
 msgstr "Automatische WordPress Emails senden?"
 
 #: importer.php:951
 msgid ""
-"Deactivate WordPress automattic email when an user is updated or his "
+"Deactivate WordPress automatic email when an user is updated or his "
 "password is changed"
 msgstr ""
 "Automatische WordPress Emails deaktivieren, wenn ein Benutzer upgedatet oder "
@@ -862,7 +862,7 @@ msgstr ""
 
 #: importer.php:952
 msgid ""
-"Activate WordPress automattic email when an user is updated or his password "
+"Activate WordPress automatic email when an user is updated or his password "
 "is changed"
 msgstr ""
 "Automatische WordPress Emails aktivieren, wenn ein Benutzer upgedatet oder "
@@ -871,7 +871,7 @@ msgstr ""
 #: importer.php:954
 msgid ""
 "When you update an user or change his password, WordPress prepare and send "
-"automattic email, you can deactivate it here."
+"automatic email, you can deactivate it here."
 msgstr ""
 "Beim Update eines Benutzers oder einer Passwortänderung sendet WordPress "
 "automatisch eine Mail. Das kann hier deaktivert werden"
