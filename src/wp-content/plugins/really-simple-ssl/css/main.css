@@ -14,20 +14,64 @@
   max-width:100%;
   /*height:inherit;*/
 }
-#message.updated.fade.notice.activate-ssl {
+
+#message.updated.notice.activate-ssl {
     padding-top: 10px;
 }
-.activate-ssl ul, .rsssl-result ul, .rsssl_bullets {
-  list-style-type: square;
-  margin-left:30px;
+
+/*Show RSSSL brand color as border-left*/
+.activate-ssl {
+  border-left: 4px solid #F8BE2E;
+}
+
+/*If scan has been completed successfully, make border-left green*/
+.rsssl-scan-completed {
+  border-left: 4px solid #46b450;
+}
+
+.btn-premium {
+  margin-left: 10px !important;
+}
+
+.btn-premium-activated {
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 
 .activate-ssl .button {
   margin-bottom:20px;
 }
-.really-simple-ssl-table td {
-  vertical-align: top;
+
+.really-simple-ssl-table {
+  display: flex;
+  flex-direction: column;
+  max-width: 1140px;
 }
+
+.rsssl-table-td-main-content {
+  width: 100%;
+}
+
+.really-simple-ssl-table tr:first-child {
+  border-top-left-radius: .55rem;
+  border-top-right-radius: .55rem;
+}
+
+.really-simple-ssl-table tr:last-child {
+  margin-bottom: 0;
+  border-bottom-left-radius: .55rem;
+  border-bottom-right-radius: .55rem;
+}
+
+.really-simple-ssl-table tr {
+  position: relative;
+  display: block;
+  padding: .75rem 1.25rem;
+  margin-bottom: -1px;
+  background-color: #fff;
+  border: 1px solid rgba(0,0,0,.125);
+}
+
 .debug-log {
   background-color: #fff;
   padding:15px;
@@ -37,6 +81,24 @@
 .rsssl-icons {
   width:15px;
   height:15px;
+}
+
+.rsssl-update-count {
+  margin-left: 4px !important;
+  display: inline-block;
+  vertical-align: top;
+  box-sizing: border-box;
+  margin: 1px 0 -1px 2px;
+  padding: 0 5px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  background-color: #ca4a1f;
+  color: #fff;
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: center;
+  z-index: 26
 }
 
 /* rsssl-rsssl-tooltip for settings page */
@@ -250,7 +312,7 @@
 /* Styling for the sidebar in the admin tab of the free plugin */
 
 .rsssl-really-simple-plugins-logo {
-  background-color: #DCDCDC;
+  background-color: #ececec;
   margin-left: -15px;
   margin-right: -15px;
 }
@@ -269,16 +331,16 @@
   min-height: 125px;
   padding-bottom: 35px;
   margin-bottom: 10px;
-  background-color: #DCDCDC;
+  background-color: #fff;
   width: 100%;
   border-radius: 3%;
 }
 
 .rsssl-sidebar-single-content-container-pro {
+  background-color: #fff;
   min-height: 125px;
   padding-bottom: 35px;
   margin-bottom: 10px;
-  background-color: #DCDCDC;
   width: 100%;
   border-radius: 3%;
 }
@@ -344,6 +406,7 @@
    width: 40%;
  }
   .rsssl-sidebar-single-content-container {
+    background-color: #fff;
     width: 40%;
     padding-left: 25px;
     float: left;
@@ -410,7 +473,8 @@
   -webkit-border-radius: 12px;
   -moz-border-radius: 12px;
   border-radius: 12px;
-  background-color: #7BD561;
+  border: none;
+  background-color: #000000;
   color: white;
   margin-right: 5px;
 }
@@ -440,16 +504,18 @@ hr {
   float: right;
   font-size: inherit;
   height: 25px;
-  -webkit-border-radius: 12px;
-  -moz-border-radius: 12px;
   border-radius: 12px;
-  background-color: #017FAF;
+  border: none;
+  background-color: #000000;
   color: white;
   margin-right: 5px;
 }
 
 .rsssl-more-info-button {
+  border: none;
+  border-radius: 50px;
   clear: both;
+  margin-top: 10px;
 }
 
 #TB_ajaxContent {
@@ -464,8 +530,118 @@ hr {
   margin-right: 15px;
 }
 
+.rsssl-scan-completed .rsssl-scan-button {
+  margin-top: 17px;
+}
+
 .rsssl-scan-button{
     float: left;
-    margin-top: 17px;
-    margin-right: 5px;
+    margin-top: 10px;
+    margin-right: 15px;
+}
+
+/*
+    cool checkbox sliders
+*/
+.rsssl-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 21px;
+}
+.rsssl-switch input {
+  display: none;
+}
+.rsssl-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+.rsssl-slider:before {
+  position: absolute;
+  content: "";
+  height: 15px;
+  width: 15px;
+  left: 4px;
+  bottom: 3px;
+  background-color: white;
+  -webkit-transition: .4s;
+  transition: .4s;
+}
+.rsssl-slider.rsssl-round {
+  border-radius: 20px;
+}
+.rsssl-slider.rsssl-round:before {
+  border-radius: 50%;
+}
+input:checked + .rsssl-slider {
+  background-color: #2DAAE1;
+}
+input:checked + .rsssl-slider:before {
+  -webkit-transform: translateX(17px);
+  -ms-transform: translateX(17px);
+  transform: translateX(17px);
+}
+input:disabled + .rsssl-slider {
+  background-color: #b3e0f4;
+}
+input:focus + .rsssl-slider {
+  box-shadow: 0 0 1px #2DAAE1;
+}
+
+.debug-log {
+  width: 90%;
+}
+
+.rsssl-dismiss-text {
+  font-size: 1em;
+  color: #0073aa;
+  margin-left: 6px;
+}
+
+.rsssl-dashboard-plusone {
+  margin-left: 8px;
+}
+
+.rsssl-highlight {
+  border-left: 4px solid #46B450;
+  box-shadow: 0 1px 1px 0 rgba(0,0,0,0.1);
+  background-image:none !important;
+  -o-animation: fadeIt 5s ease-in-out;
+  animation: fadeIt 5s ease-in-out;}
+
+@-o-keyframes fadeIt {
+  0%   { background-color: #FFFFFF; }
+  30%  { background-color: #d6efd6; }
+  100% { background-color: inherit; }
+}
+@keyframes fadeIt {
+  0%   { background-color: #FFFFFF; }
+  30%  { background-color: #d6efd6; }
+  100% { background-color: inherit; }
+}
+
+.form-table th {
+  padding-left: 10px;
+}
+
+.rsssl-dashboard-dismiss .close {
+  all: initial;
+}
+
+.rsssl-dashboard-dismiss span {
+  font-size: 1.5em;
+  color: darkgrey;
+  font-family: sans-serif;
+}
+
+.rsssl-dashboard-dismiss span:hover {
+  cursor: pointer;
+  color: grey;
 }
