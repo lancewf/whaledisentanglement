@@ -240,12 +240,14 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 				$table['id'] = $table['new_id'];
 			}
 
-			// At this point, the table data is valid and can be rendered.
+			// Sanitize all table data to remove unsafe HTML from the preview output, if the user is not allowed to work with unfiltered HTML.
+			if ( ! current_user_can( 'unfiltered_html' ) ) {
+				$table = TablePress::$model_table->sanitize( $table );
+			}
+
+			// At this point, the table data is valid and sanitized and can be rendered.
 			$success = true;
 		} while ( false ); // Do-while-loop through this exactly once, to be able to "break;" early.
-
-		// Initialize i18n support, load plugin's textdomain, to retrieve correct translations for the description of the preview.
-		load_plugin_textdomain( 'tablepress', false, dirname( TABLEPRESS_BASENAME ) . '/i18n' );
 
 		if ( $success ) {
 			// Create a render class instance.
@@ -277,7 +279,7 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 
 		// Generate the response.
 		$response = array(
-			'success' => $success,
+			'success'   => $success,
 			'head_html' => $head_html,
 			'body_html' => $body_html,
 		);
