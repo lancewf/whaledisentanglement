@@ -16,3 +16,6 @@ all three subdomains (media, hawaii-alaska, and west-coast). This is a mysql, ph
 
 ## To load existing images
 1. Copy 'upload' folder to `/hab/svc/whaledisentanglement/data/wp-content`
+
+## convert to http from https
+1. Run `to_http` in the studio
