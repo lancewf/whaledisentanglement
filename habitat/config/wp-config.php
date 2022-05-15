@@ -60,7 +60,7 @@ define('DB_COLLATE', '');
 
 define('WP_MEMORY_LIMIT', '128M');
 
-define('WP_MAX_MEMORY_LIMIT', '128M');
+define('WP_MAX_MEMORY_LIMIT', '{{cfg.wp_max_memory_limit}}');
 
 define( "ADD_FROM_SERVER", "/" );
 

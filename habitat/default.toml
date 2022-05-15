@@ -5,6 +5,8 @@ worker_rlimit_nofile = 8192
 
 database_name = "whaledisentanglement"
 
+wp_max_memory_limit = "512M"
+
 #### Events Context Configuration
 [events]
 # worker_connections: Connections per Worker Process.  Default = 1024
