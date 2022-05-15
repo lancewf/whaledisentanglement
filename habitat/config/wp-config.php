@@ -62,6 +62,8 @@ define('WP_MEMORY_LIMIT', '128M');
 
 define('WP_MAX_MEMORY_LIMIT', '128M');
 
+define( "ADD_FROM_SERVER", "/" );
+
 /**#@+
  * Authentication Unique Keys and Salts.
  *

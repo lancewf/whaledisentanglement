@@ -63,7 +63,18 @@ function um_after_insert_user( $user_id, $args ) {
 	if ( ! empty( $args['submitted'] ) ) {
 		UM()->user()->set_registration_details( $args['submitted'], $args );
 	}
-    UM()->user()->set_status( um_user( 'status' ) );
+
+	$status = um_user( 'status' );
+	if ( empty( $status ) ) {
+		um_fetch_user( $user_id );
+		$status = um_user( 'status' );
+	}
+
+	/* save user status */
+	UM()->user()->set_status( $status );
+
+	/* create user uploads directory */
+	UM()->uploader()->get_upload_user_base_dir( $user_id, true );
 
 	/**
 	 * UM hook
@@ -170,11 +181,6 @@ function um_check_user_status( $user_id, $args ) {
 
 		do_action( "track_{$status}_user_registration" );
 
-		// Priority redirect
-		if ( isset( $args['redirect_to'] ) ) {
-			exit( wp_redirect( urldecode( $args['redirect_to'] ) ) );
-		}
-
 		if ( $status == 'approved' ) {
 
 			UM()->user()->auto_login( $user_id );
@@ -201,6 +207,13 @@ function um_check_user_status( $user_id, $args ) {
 			 */
 			do_action( 'um_registration_after_auto_login', $user_id );
 
+			// Priority redirect
+			if ( isset( $args['redirect_to'] ) ) {
+				exit( wp_safe_redirect( urldecode( $args['redirect_to'] ) ) );
+			}
+
+			um_fetch_user( $user_id );
+
 			if ( um_user( 'auto_approve_act' ) == 'redirect_url' && um_user( 'auto_approve_url' ) !== '' ) {
 				exit( wp_redirect( um_user( 'auto_approve_url' ) ) );
 			}
@@ -209,9 +222,7 @@ function um_check_user_status( $user_id, $args ) {
 				exit( wp_redirect( um_user_profile_url() ) );
 			}
 
-		}
-
-		if ( $status != 'approved' ) {
+		} else {
 
 			if ( um_user( $status . '_action' ) == 'redirect_url' && um_user( $status . '_url' ) != '' ) {
 				/**
@@ -303,24 +314,32 @@ function um_submit_form_register( $args ) {
 
 	if ( ! empty( $first_name ) && ! empty( $last_name ) && empty( $user_login ) ) {
 
-		if ( UM()->options()->get( 'permalink_base' ) == 'name' ) {
-			$user_login = rawurlencode( strtolower( str_replace( " ", ".", $first_name . " " . $last_name ) ) );
-		} elseif ( UM()->options()->get( 'permalink_base' ) == 'name_dash' ) {
-			$user_login = rawurlencode( strtolower( str_replace( " ", "-", $first_name . " " . $last_name ) ) );
-		} elseif ( UM()->options()->get( 'permalink_base' ) == 'name_plus' ) {
-			$user_login = strtolower( str_replace( " ", "+", $first_name . " " . $last_name ) );
-		} else {
-			$user_login = strtolower( str_replace( " ", "", $first_name . " " . $last_name ) );
-		}
+		switch ( UM()->options()->get( 'permalink_base' ) ) {
+			case 'name':
+				$user_login = str_replace( " ", ".", $first_name . " " . $last_name );
+				break;
 
-		// if full name exists
-		$count = 1;
-		$temp_user_login = $user_login;
-		while ( username_exists( $temp_user_login ) ) {
-			$temp_user_login = $user_login . $count;
-			$count++;
+			case 'name_dash':
+				$user_login = str_replace( " ", "-", $first_name . " " . $last_name );
+				break;
+
+			case 'name_plus':
+				$user_login = str_replace( " ", "+", $first_name . " " . $last_name );
+				break;
+
+			default:
+				$user_login = str_replace( " ", "", $first_name . " " . $last_name );
+				break;
 		}
-		if ( $temp_user_login !== $user_login ) {
+		$user_login = sanitize_user( strtolower( remove_accents( $user_login ) ), true );
+
+		if ( ! empty( $user_login ) ) {
+			$count = 1;
+			$temp_user_login = $user_login;
+			while ( username_exists( $temp_user_login ) ) {
+				$temp_user_login = $user_login . $count;
+				$count++;
+			}
 			$user_login = $temp_user_login;
 		}
 	}
@@ -329,10 +348,15 @@ function um_submit_form_register( $args ) {
 		$user_login = $user_email;
 	}
 
-	$unique_userID = UM()->query()->count_users() + 1;
+	$unique_userID = uniqid();
 
-	if ( empty( $user_login ) || strlen( $user_login ) > 30 && ! is_email( $user_login ) ) {
+	// see dbDelta and WP native DB structure user_login varchar(60)
+	if ( empty( $user_login ) || mb_strlen( $user_login ) > 60 && ! is_email( $user_login ) ) {
 		$user_login = 'user' . $unique_userID;
+		while ( username_exists( $user_login ) ) {
+			$unique_userID = uniqid();
+			$user_login = 'user' . $unique_userID;
+		}
 	}
 
 	if ( isset( $username ) && is_email( $username ) ) {
@@ -346,6 +370,10 @@ function um_submit_form_register( $args ) {
 	if ( empty( $user_email ) ) {
 		$site_url = @$_SERVER['SERVER_NAME'];
 		$user_email = 'nobody' . $unique_userID . '@' . $site_url;
+		while ( email_exists( $user_email ) ) {
+			$unique_userID = uniqid();
+			$user_email = 'nobody' . $unique_userID . '@' . $site_url;
+		}
 		/**
 		 * UM hook
 		 *
@@ -376,7 +404,17 @@ function um_submit_form_register( $args ) {
 		'user_email'    => trim( $user_email ),
 	);
 
+	if ( ! empty( $args['submitted'] ) ) {
+		$args['submitted'] = array_diff_key( $args['submitted'], array_flip( UM()->user()->banned_keys ) );
+	}
+
 	$args['submitted'] = array_merge( $args['submitted'], $credentials );
+
+	// set timestamp
+	$timestamp = current_time( 'timestamp' );
+	$args['submitted']['timestamp'] = $timestamp;
+	$args['timestamp'] = $timestamp;
+
 	$args = array_merge( $args, $credentials );
 
 	//get user role from global or form's settings
@@ -385,12 +423,12 @@ function um_submit_form_register( $args ) {
 	//get user role from field Role dropdown or radio
 	if ( isset( $args['role'] ) ) {
 		global $wp_roles;
-		$um_roles = get_option( 'um_roles' );
+		$um_roles = get_option( 'um_roles', array() );
 
 		if ( ! empty( $um_roles ) ) {
 			$role_keys = array_map( function( $item ) {
 				return 'um_' . $item;
-			}, get_option( 'um_roles' ) );
+			}, $um_roles );
 		} else {
 			$role_keys = array();
 		}
@@ -554,7 +592,7 @@ function um_add_submit_button_to_register( $args ) {
 
 	<div class="um-col-alt">
 
-		<?php if ( isset( $args['secondary_btn'] ) && $args['secondary_btn'] != 0 ) { ?>
+		<?php if ( ! empty( $args['secondary_btn'] ) ) { ?>
 
 			<div class="um-left um-half">
 				<input type="submit" value="<?php esc_attr_e( wp_unslash( $primary_btn_word ), 'ultimate-member' ) ?>" class="um-button" id="um-submit-btn" />

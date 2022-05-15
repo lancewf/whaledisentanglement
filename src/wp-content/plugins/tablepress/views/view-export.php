@@ -42,7 +42,7 @@ class TablePress_Export_View extends TablePress_View {
 		if ( 0 === $data['tables_count'] ) {
 			$this->add_meta_box( 'no-tables', __( 'Export Tables', 'tablepress' ), array( $this, 'postbox_no_tables' ), 'normal' );
 		} else {
-			$this->admin_page->enqueue_script( 'export', array( 'jquery-core' ) );
+			$this->admin_page->enqueue_script( 'export', array( 'jquery' ) );
 			$this->add_meta_box( 'export-form', __( 'Export Tables', 'tablepress' ), array( $this, 'postbox_export_form' ), 'normal' );
 			$this->data['submit_button_caption'] = _x( 'Download Export File', 'button', 'tablepress' );
 			$this->add_text_box( 'submit', array( $this, 'textbox_submit_button' ), 'submit' );
@@ -99,7 +99,7 @@ class TablePress_Export_View extends TablePress_View {
 	 * @param array $box  Information about the meta box.
 	 */
 	public function postbox_export_form( array $data, array $box ) {
-?>
+		?>
 <table class="tablepress-postbox-table fixed">
 <tbody>
 	<tr>
@@ -174,10 +174,10 @@ class TablePress_Export_View extends TablePress_View {
 		<td class="column-2">
 		<?php
 		if ( $data['zip_support_available'] ) {
-		?>
+			?>
 		<input type="checkbox" id="tables-export-zip-file" name="export[zip_file]" value="true" />
 		<label for="tables-export-zip-file"><?php _e( 'Create a ZIP archive.', 'tablepress' ); ?> <span id="tables-export-zip-file-description" class="description hide-if-js"><?php _e( '(Mandatory if more than one table is selected.)', 'tablepress' ); ?></span></label>
-		<?php
+			<?php
 		} else {
 			_e( 'Note: Support for ZIP file creation seems not to be available on this server.', 'tablepress' );
 		}
@@ -186,7 +186,7 @@ class TablePress_Export_View extends TablePress_View {
 	</tr>
 </tbody>
 </table>
-<?php
+		<?php
 	}
 
 } // class TablePress_Export_View

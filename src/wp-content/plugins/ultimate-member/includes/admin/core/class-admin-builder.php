@@ -227,8 +227,16 @@ if ( ! class_exists( 'um\admin\core\Admin_Builder' ) ) {
 
 						<div class="um-admin-clear"></div>
 					</div>
+					<p class="um-admin-conditions-notice">
+						<small>
+							<?php _e( 'Use the condition operator `equals to` or `not equals` if the parent field has a single option.', 'ultimate-member' ); ?>
+							<br><?php _e( 'Use the condition operator `greater than` or `less than` if the parent field is a number.', 'ultimate-member' ); ?>
+							<br><?php _e( 'Use the condition operator `contains` if the parent field has multiple options.', 'ultimate-member' ); ?>
+						</small>
+					</p>
 					<p><a href="javascript:void(0);" class="um-admin-new-condition button button-primary um-admin-tipsy-n" title="Add new condition"><?php _e( 'Add new rule', 'ultimate-member' ); ?></a></p>
 					<p class="um-admin-reset-conditions"><a href="javascript:void(0);" class="button"><?php _e( 'Reset all rules', 'ultimate-member' ); ?></a></p>
+
 					<div class="um-admin-clear"></div>
 
 					<?php if ( isset( $edit_array['conditions'] ) && count( $edit_array['conditions'] ) != 0 ) {
@@ -484,13 +492,13 @@ if ( ! class_exists( 'um\admin\core\Admin_Builder' ) ) {
 
 										<?php
 
-										if ( !isset( $array['cols'] ) ){
+										if ( ! isset( $array['cols'] ) ) {
 											$col_num = 1;
+										} elseif ( is_numeric( $array['cols'] ) ) {
+											$col_num = (int) $array['cols'];
 										} else {
-
-											$col_split = explode(':', $array['cols'] );
-											$col_num = $col_split[$c];
-
+											$col_split = explode( ':', $array['cols'] );
+											$col_num = $col_split[ $c ];
 										}
 
 										for ( $i = 1; $i <= 3; $i++ ) {
@@ -607,10 +615,10 @@ if ( ! class_exists( 'um\admin\core\Admin_Builder' ) ) {
 			$output['error'] = null;
 
 			$array = array(
-				'field_type'    => sanitize_key( $_POST['_type'] ),
-				'form_id'       => absint( $_POST['post_id'] ),
-				'args'          => UM()->builtin()->get_core_field_attrs( sanitize_key( $_POST['_type'] ) ),
-				'post'          => $_POST
+				'field_type' => sanitize_key( $_POST['_type'] ),
+				'form_id'    => absint( $_POST['post_id'] ),
+				'args'       => UM()->builtin()->get_core_field_attrs( sanitize_key( $_POST['_type'] ) ),
+				'post'       => UM()->admin()->sanitize_builder_field_meta( $_POST ),
 			);
 
 			/**
@@ -670,8 +678,8 @@ if ( ! class_exists( 'um\admin\core\Admin_Builder' ) ) {
 				$save[ $_metakey ] = null;
 				foreach ( $array['post'] as $key => $val ) {
 
-					if ( substr( $key, 0, 1 ) === '_' && $val != '' ) { // field attribute
-						$new_key = ltrim ($key,'_');
+					if ( substr( $key, 0, 1 ) === '_' && $val !== '' ) { // field attribute
+						$new_key = ltrim ( $key, '_' );
 
 						if ( $new_key == 'options' ) {
 							//$save[ $_metakey ][$new_key] = explode(PHP_EOL, $val);
@@ -681,7 +689,12 @@ if ( ! class_exists( 'um\admin\core\Admin_Builder' ) ) {
 						}
 
 					} elseif ( strstr( $key, 'um_editor' ) ) {
-						$save[ $_metakey ]['content'] = $val;
+
+						if ( 'block' === $array['post']['_type'] ) {
+							$save[ $_metakey ]['content'] = wp_kses_post( $val );
+						} else {
+							$save[ $_metakey ]['content'] = sanitize_textarea_field( $val );
+						}
 					}
 
 				}
@@ -773,7 +786,19 @@ if ( ! class_exists( 'um\admin\core\Admin_Builder' ) ) {
 			 */
 			extract( $_POST );
 
-			switch ( $act_id ) {
+			if ( isset( $arg1 ) ) {
+				$arg1 = sanitize_text_field( $arg1 );
+			}
+
+			if ( isset( $arg2 ) ) {
+				$arg2 = sanitize_text_field( $arg2 );
+			}
+
+			if ( isset( $arg3 ) ) {
+				$arg3 = sanitize_text_field( $arg3 );
+			}
+
+			switch ( sanitize_key( $act_id ) ) {
 
 				default:
 
@@ -798,7 +823,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Builder' ) ) {
 					 * }
 					 * ?>
 					 */
-					do_action( 'um_admin_ajax_modal_content__hook', $act_id );
+					do_action( 'um_admin_ajax_modal_content__hook', sanitize_key( $act_id ) );
 					/**
 					 * UM hook
 					 *
@@ -816,7 +841,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Builder' ) ) {
 					 * }
 					 * ?>
 					 */
-					do_action( "um_admin_ajax_modal_content__hook_{$act_id}" );
+					do_action( "um_admin_ajax_modal_content__hook_" . sanitize_key( $act_id ) );
 
 					$output = ob_get_clean();
 					break;
@@ -890,7 +915,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Builder' ) ) {
 									continue;
 								} ?>
 
-								<a href="javascript:void(0);" class="button with-icon" <?php disabled( in_array( $field_key, $form_fields, true ) ) ?> data-silent_action="um_admin_add_field_from_list" data-arg1="<?php echo esc_attr( $field_key ); ?>" data-arg2="<?php echo esc_attr( $arg2 ); ?>"><?php echo um_trim_string( stripslashes( $array['title'] ), 20 ); ?> <small>(<?php echo ucfirst( $array['type'] ); ?>)</small><span class="remove"></span></a>
+								<a href="javascript:void(0);" class="button with-icon" <?php disabled( in_array( $field_key, $form_fields, true ) ) ?> data-silent_action="um_admin_add_field_from_list" data-arg1="<?php echo esc_attr( $field_key ); ?>" data-arg2="<?php echo esc_attr( $arg2 ); ?>" title="<?php echo __( 'Meta Key', 'ultimate-member' ) . ' - ' . esc_attr( $field_key ); ?>"><?php echo um_trim_string( stripslashes( $array['title'] ), 20 ); ?> <small>(<?php echo ucfirst( $array['type'] ); ?>)</small><span class="remove"></span></a>
 
 							<?php }
 						} else {
@@ -1055,12 +1080,25 @@ if ( ! class_exists( 'um\admin\core\Admin_Builder' ) ) {
 					}
 
 					$output = '<div class="um-admin-preview-overlay"></div>';
-					$output .= do_shortcode('[ultimatemember form_id="' . $arg1 . '" /]');
+
+					if ( version_compare( get_bloginfo('version'),'5.4', '<' ) ) {
+						$output .= do_shortcode('[ultimatemember form_id="' . $arg1 . '" /]');
+					} else {
+						$output .= apply_shortcodes('[ultimatemember form_id="' . $arg1 . '" /]');
+					}
 
 					break;
 
 				case 'um_admin_review_registration':
 					//$user_id = $arg1;
+
+					if ( ! current_user_can( 'administrator' ) ) {
+						if ( ! um_can_view_profile( $arg1 ) ) {
+							$output = '';
+							break;
+						}
+					}
+
 					um_fetch_user( $arg1 );
 
 					UM()->user()->preview = true;

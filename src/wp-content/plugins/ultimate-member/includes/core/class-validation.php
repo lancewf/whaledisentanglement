@@ -19,6 +19,7 @@ if ( ! class_exists( 'um\core\Validation' ) ) {
 		 */
 		function __construct() {
 			$this->regex_safe = '/\A[\w\-\.]+\z/';
+			$this->regex_username_safe = '|[^a-z0-9 _.\-@]|i';
 			$this->regex_phone_number = '/\A[\d\-\.\+\(\)\ ]+\z/';
 
 
@@ -162,19 +163,24 @@ if ( ! class_exists( 'um\core\Validation' ) ) {
 
 
 		/**
-		 * Password test
+		 * Password strength test
 		 *
-		 * @param $candidate
+		 * @param string $candidate
 		 *
 		 * @return bool
 		 */
 		function strong_pass( $candidate ) {
-			$r1='/[A-Z]/';
-			$r2='/[a-z]/';
-			$r3='/[0-9]/';
-			if(preg_match_all($r1,$candidate, $o)<1) return false;
-			if(preg_match_all($r2,$candidate, $o)<1) return false;
-			if(preg_match_all($r3,$candidate, $o)<1) return false;
+			// are used Unicode Regular Expressions
+			$regexps = [
+				'/[\p{Lu}]/u', // any Letter Uppercase symbol
+				'/[\p{Ll}]/u', // any Letter Lowercase symbol
+				'/[\p{N}]/u', // any Number symbol
+			];
+			foreach ( $regexps as $regexp ) {
+				if ( preg_match_all( $regexp, $candidate, $o ) < 1 ) {
+					return false;
+				}
+			}
 			return true;
 		}
 
@@ -209,12 +215,12 @@ if ( ! class_exists( 'um\core\Validation' ) ) {
 			 * }
 			 * ?>
 			 */
-			$regex_safe_username = apply_filters('um_validation_safe_username_regex',$this->regex_safe );
+			$regex_safe_username = apply_filters( 'um_validation_safe_username_regex', $this->regex_username_safe );
 
 			if ( is_email( $string ) ) {
 				return true;
 			}
-			if ( ! is_email( $string ) && ! preg_match( $regex_safe_username, $string ) ) {
+			if ( ! is_email( $string ) && preg_match( $regex_safe_username, $string ) ) {
 				return false;
 			}
 			return true;
@@ -272,6 +278,27 @@ if ( ! class_exists( 'um\core\Validation' ) ) {
 				return true;
 			}
 			if ( ! preg_match( $this->regex_phone_number, $string ) ) {
+				return false;
+			}
+			return true;
+		}
+
+
+		/**
+		 * Is Discord ID?
+		 *
+		 * @param $string
+		 *
+		 * @return bool
+		 */
+		public function is_discord_id( $string ) {
+			if ( ! $string ) {
+				return true;
+			}
+			if ( substr_count( $string, '#' ) > 1 ) {
+				return false;
+			}
+			if ( ! preg_match( '/^(.+)#(\d+)$/', trim( $string ) ) ) {
 				return false;
 			}
 			return true;

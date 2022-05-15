@@ -53,10 +53,10 @@ defined( 'ABSPATH' ) || die( 'No direct script access allowed!' );
 class TablePress_CSSTidy_print {
 
 	/**
-	 * CSSTidy instance.
+	 * TablePress_CSSTidy instance.
 	 *
 	 * @since 1.0.0
-	 * @var CSSTidy
+	 * @var TablePress_CSSTidy
 	 */
 	public $parser;
 
@@ -137,7 +137,7 @@ class TablePress_CSSTidy_print {
 	 *
 	 * @since 1.0
 	 *
-	 * @param CSSTidy $css Instance of the CSSTidy class.
+	 * @param TablePress_CSSTidy $css Instance of the TablePress_CSSTidy class.
 	 */
 	public function __construct( $css ) {
 		$this->parser = $css;
@@ -348,7 +348,7 @@ class TablePress_CSSTidy_print {
 					}
 					if ( $indent_level > 1 ) {
 						$out = &$in_at_out[ $indent_level - 1 ];
-					}else {
+					} else {
 						$out = &$output;
 					}
 					$out .= $template[10] . $in_at_out[$indent_level];
@@ -427,7 +427,7 @@ class TablePress_CSSTidy_print {
 			if ( $sort_selectors ) {
 				ksort( $val );
 			}
-			if ( intval( $medium ) < DEFAULT_AT ) {
+			if ( (int) $medium < DEFAULT_AT ) {
 				// un medium vide (contenant @font-face ou autre @) ne produit aucun conteneur
 				if ( strlen( trim( $medium ) ) ) {
 					$parts_to_open = explode( '{', $medium );
@@ -470,7 +470,7 @@ class TablePress_CSSTidy_print {
 				$this->parser->_add_token( SEL_END, $selector, true );
 			}
 
-			if ( intval( $medium ) < DEFAULT_AT ) {
+			if ( (int) $medium  < DEFAULT_AT ) {
 				// un medium vide (contenant @font-face ou autre @) ne produit aucun conteneur
 				if ( strlen( trim( $medium ) ) ) {
 					$parts_to_close = explode( '{', $medium );

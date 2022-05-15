@@ -20,6 +20,75 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 		 */
 		function __construct() {
 			add_action( 'wp_roles_init', array( &$this, 'um_roles_init' ), 99999 );
+			add_action( 'update_option', array( &$this, 'um_on_roles_update' ), 10, 3 );
+			add_action( 'set_user_role', array( &$this, 'remove_user_cache' ), 10, 1 );
+		}
+
+
+		/**
+		 * Flush the Cache User Profile on set new user role(s)
+		 *
+		 * @param int $user_id
+		 */
+		function remove_user_cache( $user_id ) {
+			$user = get_userdata( $user_id );
+
+			if ( ! is_a( $user, '\WP_User' ) ) {
+				return;
+			}
+
+			UM()->user()->remove_cache( $user_id );
+		}
+
+
+		/**
+		 * @param string $option
+		 * @param mixed $old_value
+		 * @param mixed $value
+		 */
+		function um_on_roles_update( $option, $old_value, $value ) {
+			global $wp_roles;
+
+			if ( is_object( $wp_roles ) && isset( $wp_roles->role_key ) && $option == $wp_roles->role_key ) {
+				foreach ( $value as $role_key => $role_data ) {
+					$role_keys = get_option( 'um_roles', array() );
+					$role_keys = array_map( function( $item ) {
+						return 'um_' . $item;
+					}, $role_keys );
+
+					if ( ! empty( $role_keys ) && in_array( $role_key, $role_keys ) ) {
+						$role_meta = get_option( 'um_role_' . substr( $role_key, 3 ) . '_meta' );
+
+						if ( ! isset( $role_meta['wp_capabilities'] ) ) {
+							$role_meta['wp_capabilities'] = array();
+						}
+
+						if ( ! empty( $role_data['capabilities'] ) && is_array( $role_data['capabilities'] ) ) {
+							$old_role_caps = ! empty( $old_value[ $role_key ]['capabilities'] ) ? array_keys( $old_value[ $role_key ]['capabilities'] ) : array();
+
+							if ( ! empty( $old_role_caps ) ) {
+								$unset_caps = array_diff( $old_role_caps, array_keys( $role_data['capabilities'] ) );
+
+								if ( ! empty( $unset_caps ) ) {
+									foreach ( $unset_caps as $cap ) {
+										if ( ! empty( $role_meta['wp_capabilities'][ $cap ] ) ) {
+											unset( $role_meta['wp_capabilities'][ $cap ] );
+										}
+									}
+								}
+							}
+
+							foreach ( $role_data['capabilities'] as $cap => $grant ) {
+								if ( $grant ) {
+									$role_meta['wp_capabilities'][ $cap ] = true;
+								}
+							}
+						}
+
+						update_option( 'um_role_' . substr( $role_key, 3 ) . '_meta', $role_meta );
+					}
+				}
+			}
 		}
 
 
@@ -35,35 +104,30 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 			foreach ( $wp_roles->roles as $roleID => $role_data ) {
 				$role_meta = get_option( "um_role_{$roleID}_meta" );
 
-				if ( ! empty( $role_meta ) )
-					$wp_roles->roles[$roleID] = array_merge( $role_data, $role_meta );
+				if ( ! empty( $role_meta ) ) {
+					$wp_roles->roles[ $roleID ] = array_merge( $role_data, $role_meta );
+				}
 			}
 
 
 			//Add custom UM roles
 			$roles = array();
 
-			$role_keys = get_option( 'um_roles' );
-
-			if ( $role_keys ) {
-
-				foreach ( $role_keys as $role_key ) {
-					$role_meta = get_option( "um_role_{$role_key}_meta" );
-					if ( $role_meta ) {
-						//$role_meta['name'] = 'UM ' . $role_meta['name'];
-						$roles['um_' . $role_key] = $role_meta;
-					}
+			$role_keys = get_option( 'um_roles', array() );
+			foreach ( $role_keys as $role_key ) {
+				$role_meta = get_option( "um_role_{$role_key}_meta" );
+				if ( $role_meta ) {
+					$roles[ 'um_' . $role_key ] = $role_meta;
 				}
+			}
 
-				foreach ( $roles as $role_id => $details ) {
-					$capabilities = ! empty( $details['wp_capabilities'] ) ? array_keys( $details['wp_capabilities'] ) : array();
-					$details['capabilities'] = array_fill_keys( array_values( $capabilities ), true );
-					unset( $details['wp_capabilities'] );
-					$wp_roles->roles[$role_id]        = $details;
-					$wp_roles->role_objects[$role_id] = new \WP_Role( $role_id, $details['capabilities'] );
-					$wp_roles->role_names[$role_id]   = $details['name'];
-				}
-
+			foreach ( $roles as $role_id => $details ) {
+				$capabilities = ! empty( $details['wp_capabilities'] ) ? array_keys( $details['wp_capabilities'] ) : array();
+				$details['capabilities'] = array_fill_keys( array_values( $capabilities ), true );
+				unset( $details['wp_capabilities'] );
+				$wp_roles->roles[ $role_id ]        = $details;
+				$wp_roles->role_objects[ $role_id ] = new \WP_Role( $role_id, $details['capabilities'] );
+				$wp_roles->role_names[ $role_id ]   = $details['name'];
 			}
 
 			// Return the modified $wp_roles array
@@ -79,10 +143,11 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 		 */
 		function is_role_custom( $role ) {
 			// User has roles so look for a UM Role one
-			$role_keys = get_option( 'um_roles' );
+			$role_keys = get_option( 'um_roles', array() );
 
-			if ( empty( $role_keys ) )
+			if ( empty( $role_keys ) ) {
 				return false;
+			}
 
 			$role_keys = array_map( function( $item ) {
 				return 'um_' . $item;
@@ -299,18 +364,6 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 
 
 		/**
-		 * Set roles to user (remove all previous roles)
-		 * make user only with $roles roles
-		 *
-		 * @param int $user_id
-		 * @param string|array $roles
-		 */
-		function set_roles( $user_id, $roles ) {
-
-		}
-
-
-		/**
 		 * Get user one of UM roles if it has it
 		 *
 		 * @deprecated since 2.0
@@ -346,21 +399,25 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 		function get_priority_user_role( $user_id ) {
 			$user = get_userdata( $user_id );
 
-			if ( empty( $user->roles ) )
+			if ( empty( $user->roles ) ) {
 				return false;
+			}
 
 			// User has roles so look for a UM Role one
-			$um_roles_keys = get_option( 'um_roles' );
+			$um_roles_keys = get_option( 'um_roles', array() );
 
 			if ( ! empty( $um_roles_keys ) ) {
-				$um_roles_keys = array_map( function( $item ) {
-					return 'um_' . $item;
-				}, $um_roles_keys );
+				$um_roles_keys = array_map(
+					function( $item ) {
+						return 'um_' . $item;
+					},
+					$um_roles_keys
+				);
 			}
 
 			$orders = array();
 			foreach ( array_values( $user->roles ) as $userrole ) {
-				if ( ! empty( $um_roles_keys ) && in_array( $userrole, $um_roles_keys ) ) {
+				if ( ! empty( $um_roles_keys ) && in_array( $userrole, $um_roles_keys, true ) ) {
 					$userrole_metakey = substr( $userrole, 3 );
 				} else {
 					$userrole_metakey = $userrole;
@@ -418,7 +475,7 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 				return false;
 
 			// User has roles so look for a UM Role one
-			$um_roles_keys = get_option( 'um_roles' );
+			$um_roles_keys = get_option( 'um_roles', array() );
 
 			if ( ! empty( $um_roles_keys ) ) {
 				$um_roles_keys = array_map( function( $item ) {
@@ -460,15 +517,17 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 		 */
 		function get_um_user_role( $user_id ) {
 			// User has roles so look for a UM Role one
-			$um_roles_keys = get_option( 'um_roles' );
+			$um_roles_keys = get_option( 'um_roles', array() );
 
-			if ( empty( $um_roles_keys ) )
+			if ( empty( $um_roles_keys ) ) {
 				return false;
+			}
 
 			$user = get_userdata( $user_id );
 
-			if ( empty( $user->roles ) )
+			if ( empty( $user->roles ) ) {
 				return false;
+			}
 
 			$um_roles_keys = array_map( function( $item ) {
 				return 'um_' . $item;
@@ -476,8 +535,9 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 
 			$user_um_roles_array = array_intersect( $um_roles_keys, array_values( $user->roles ) );
 
-			if ( empty( $user_um_roles_array ) )
+			if ( empty( $user_um_roles_array ) ) {
 				return false;
+			}
 
 			return array_shift( $user_um_roles_array );
 		}
@@ -550,7 +610,7 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 		 *
 		 * @return array
 		 */
-		function get_roles( $add_default = false, $exclude = null ){
+		function get_roles( $add_default = false, $exclude = null ) {
 			global $wp_roles;
 
 			if ( empty( $wp_roles ) ) {
@@ -568,6 +628,8 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 					unset ( $roles[ $role ] );
 				}
 			}
+
+			$roles = array_map( 'stripslashes', $roles );
 
 			return $roles;
 		}
@@ -602,13 +664,18 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 							$return = 0;
 						}
 					} else {
-						if ( ! um_user( 'can_edit_everyone' ) ) {
+
+						if ( ! um_user( 'can_access_private_profile' ) && UM()->user()->is_private_profile( $user_id ) ) {
 							$return = 0;
 						} else {
-							if ( um_user( 'can_edit_roles' ) && ( empty( $current_user_roles ) || count( array_intersect( $current_user_roles, um_user( 'can_edit_roles' ) ) ) <= 0 ) ) {
+							if ( ! um_user( 'can_edit_everyone' ) ) {
 								$return = 0;
 							} else {
-								$return = 1;
+								if ( um_user( 'can_edit_roles' ) && ( empty( $current_user_roles ) || count( array_intersect( $current_user_roles, um_user( 'can_edit_roles' ) ) ) <= 0 ) ) {
+									$return = 0;
+								} else {
+									$return = 1;
+								}
 							}
 						}
 					}

@@ -9,7 +9,7 @@ jQuery(document).ready(function() {
 		um_remove_modal();
 	});
 
-	jQuery(document).on('click', 'a[data-modal^="um_"], span[data-modal^="um_"], .um-modal a', function(e){
+	jQuery(document).on('click', 'a[data-modal^="um_"], span[data-modal^="um_"], .um-modal:not(:has(.um-form)) a', function(e){
 		e.preventDefault();
 		return false;
 	});
@@ -102,6 +102,7 @@ jQuery(document).ready(function() {
 			user_id = jQuery(this).parents('#um_upload_single').data('user_id');
 		}
 
+		var d;
 		var form_id = 0;
 		var mode = '';
 		if ( jQuery('div.um-field-image[data-key="' + key + '"]').length === 1 ) {
@@ -180,7 +181,7 @@ jQuery(document).ready(function() {
 		var size = 'normal';
 
 		if ( jQuery(this).data('modal-size')  ) {
-			var size = jQuery(this).data('modal-size');
+			size = jQuery(this).data('modal-size');
 		}
 		
 		if ( jQuery(this).data('modal-copy') ) {
@@ -199,17 +200,13 @@ jQuery(document).ready(function() {
 				jQuery('#' + modal_id).attr('data-user_id',  jQuery(this).parents('.um-cover').attr('data-user_id')  );
 			}
 
-			if( jQuery("input[type=hidden][name='user_id']").length > 0 ){
-				jQuery('#' + modal_id).attr('data-user_id',  jQuery("input[type=hidden][name='user_id']").val() );
+			if ( jQuery('input[type="hidden"][name="user_id"]').length > 0 ) {
+				jQuery('#' + modal_id).attr( 'data-user_id',  jQuery('input[type="hidden"][name="user_id"]').val() );
 			}
 
-			um_new_modal( modal_id, size );
-			
-		} else {
-
-			um_new_modal( modal_id, size );
-			
 		}
+
+		um_new_modal( modal_id, size );
 	});
 
 });

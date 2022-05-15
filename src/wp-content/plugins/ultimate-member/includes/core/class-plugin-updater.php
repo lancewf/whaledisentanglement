@@ -19,15 +19,8 @@ if ( ! class_exists( 'um\core\Plugin_Updater' ) ) {
 		 * Plugin_Updater constructor.
 		 */
 		function __construct() {
-			//create cron event
-			if ( ! wp_next_scheduled( 'um_check_extensions_licenses' ) ) {
-				wp_schedule_event( time() + ( 24*60*60 ), 'daily', 'um_check_extensions_licenses' );
-			}
-
-			register_deactivation_hook( um_plugin, array( &$this, 'um_plugin_updater_deactivation_hook' ) );
-
 			//cron request to UM()->store_url;
-			add_action( 'um_check_extensions_licenses', array( &$this, 'um_checklicenses' ) );
+			add_action( 'um_daily_scheduled_events', array( &$this, 'um_checklicenses' ) );
 			
 			// clean update plugin cache
 			add_action( 'upgrader_process_complete', array( &$this, 'clean_update_plugins_cache' ), 20, 2 );
@@ -37,6 +30,30 @@ if ( ! class_exists( 'um\core\Plugin_Updater' ) ) {
 
 			//plugin information info
 			add_filter( 'plugins_api', array( &$this, 'plugin_information' ), 9999, 3 );
+
+			// make this only for version which have the update packages
+			//add_filter( 'auto_update_plugin', array( &$this, 'prevent_dangerous_auto_updates' ), 99, 2 );
+		}
+
+
+		/**
+		 * Prevent auto-updating the WooCommerce plugin on major releases if there are untested extensions active.
+		 *
+		 * @since 3.2.0
+		 * @param  bool   $should_update If should update.
+		 * @param  object $plugin        Plugin data.
+		 * @return bool
+		 */
+		function prevent_dangerous_auto_updates( $should_update, $plugin ) {
+			if ( ! isset( $plugin->plugin, $plugin->new_version ) ) {
+				return $should_update;
+			}
+
+			if ( 'ultimate-member/ultimate-member.php' !== $plugin->plugin ) {
+				return $should_update;
+			}
+
+			return $should_update;
 		}
 
 		
@@ -147,6 +164,14 @@ if ( ! class_exists( 'um\core\Plugin_Updater' ) ) {
 					'key'   => 'unsplash',
 					'title' => 'Unsplash',
 				),
+				'um-user-locations/um-user-locations.php'               => array(
+					'key'   => 'user_locations',
+					'title' => 'User Locations',
+				),
+				'um-profile-tabs/um-profile-tabs.php'                   => array(
+					'key'   => 'profile_tabs',
+					'title' => 'Profile tabs',
+				),
 				'um-user-notes/um-user-notes.php'                       => array(
 					'key'   => 'user_notes',
 					'title' => 'User Notes',
@@ -155,17 +180,9 @@ if ( ! class_exists( 'um\core\Plugin_Updater' ) ) {
 					'key'   => 'frontend_posting',
 					'title' => 'Frontend Posting',
 				),
-				'um-filesharing/um-filesharing.php'                     => array(
-					'key'   => 'filesharing',
-					'title' => 'File Sharing',
-				),
-				'um-user-locations/um-user-locations.php'                 => array(
-					'key'   => 'user-locations',
-					'title' => 'User Locations',
-				),
-				'um-profile-tabs/um-profile-tabs.php'                   => array(
-					'key'   => 'profile_tabs',
-					'title' => 'Profile tabs',
+				'um-google-authenticator/um-google-authenticator.php'   => array(
+					'key'   => 'google_authenticator',
+					'title' => 'Google Authenticator',
 				),
 			);
 
@@ -221,14 +238,6 @@ if ( ! class_exists( 'um\core\Plugin_Updater' ) ) {
 			}
 
 			return $active_um_plugins;
-		}
-
-
-		/**
-		 * Remove CRON events on deactivation hook
-		 */
-		function um_plugin_updater_deactivation_hook() {
-			wp_clear_scheduled_hook( 'um_check_extensions_licenses' );
 		}
 
 
@@ -355,14 +364,8 @@ if ( ! class_exists( 'um\core\Plugin_Updater' ) ) {
 		 * @return \stdClass modified plugin update array.
 		 */
 		function check_update( $_transient_data ) {
-			global $pagenow;
-
 			if ( ! is_object( $_transient_data ) ) {
 				$_transient_data = new \stdClass;
-			}
-
-			if ( 'plugins.php' == $pagenow && is_multisite() ) {
-				return $_transient_data;
 			}
 
 			$exts = $this->get_active_plugins();
@@ -372,6 +375,10 @@ if ( ! class_exists( 'um\core\Plugin_Updater' ) ) {
 				if ( ! empty( $_transient_data->response ) && ! empty( $_transient_data->response[ $slug ] ) && $_transient_data->last_checked > time() - DAY_IN_SECONDS ) {
 					continue;
 				}
+
+				/*if ( ! empty( $_transient_data->no_update ) && ! empty( $_transient_data->no_update[ $slug ] ) && $_transient_data->last_checked > time() - DAY_IN_SECONDS ) {
+					continue;
+				}*/
 
 				$path = wp_normalize_path( WP_PLUGIN_DIR . DIRECTORY_SEPARATOR . $slug );
 				if ( ! file_exists( $path ) ) {
@@ -396,11 +403,20 @@ if ( ! class_exists( 'um\core\Plugin_Updater' ) ) {
 					if ( version_compare( $plugin_data['Version'], $version_info->new_version, '<' ) ) {
 						$_transient_data->response[ $slug ] = $version_info;
 						$_transient_data->response[ $slug ]->plugin = $slug;
+					} else {
+						$_transient_data->no_update[ $slug ] = $version_info;
+						$_transient_data->no_update[ $slug ]->plugin = $slug;
 					}
 
 					$_transient_data->last_checked      = time();
 					$_transient_data->checked[ $slug ]  = $plugin_data['Version'];
 
+				} elseif ( false !== $version_info && is_object( $version_info ) && ! isset( $version_info->new_version ) ) {
+					$_transient_data->no_update[ $slug ] = $version_info;
+					$_transient_data->no_update[ $slug ]->plugin = $slug;
+
+					$_transient_data->last_checked      = time();
+					$_transient_data->checked[ $slug ]  = $plugin_data['Version'];
 				}
 			}
 

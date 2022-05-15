@@ -38,6 +38,8 @@ if ( ! class_exists( 'UM' ) ) {
 	 * @method UM_Unsplash Unsplash()
 	 * @method UM_ForumWP ForumWP()
 	 * @method UM_Profile_Tabs Profile_Tabs()
+	 * @method UM_JobBoardWP JobBoardWP()
+	 * @method UM_Google_Authenticator Google_Authenticator()
 	 */
 	final class UM extends UM_Functions {
 
@@ -210,6 +212,12 @@ if ( ! class_exists( 'UM' ) ) {
 
 				//run activation
 				register_activation_hook( um_plugin, array( &$this, 'activation' ) );
+
+				register_deactivation_hook( um_plugin, array( &$this, 'deactivation' ) );
+
+				if ( is_multisite() && ! defined( 'DOING_AJAX' ) ) {
+					add_action( 'wp_loaded', array( $this, 'maybe_network_activation' ) );
+				}
 
 				// init widgets
 				add_action( 'widgets_init', array( &$this, 'widgets_init' ) );
@@ -441,11 +449,37 @@ if ( ! class_exists( 'UM' ) ) {
 		 * @since 2.0
 		 */
 		function activation() {
+			$this->single_site_activation();
 			if ( is_multisite() ) {
-				if ( ! is_plugin_active_for_network( um_plugin ) ) {
-					$this->single_site_activation();
-				} else {
-					//get all blogs
+				update_network_option( get_current_network_id(), 'um_maybe_network_wide_activation', 1 );
+			}
+		}
+
+
+		/**
+		 * Plugin Deactivation
+		 *
+		 * @since 2.3
+		 */
+		function deactivation() {
+			$this->cron()->unschedule_events();
+		}
+
+
+		/**
+		 * Maybe need multisite activation process
+		 *
+		 * @since 2.1.7
+		 */
+		function maybe_network_activation() {
+			$maybe_activation = get_network_option( get_current_network_id(), 'um_maybe_network_wide_activation' );
+
+			if ( $maybe_activation ) {
+
+				delete_network_option( get_current_network_id(), 'um_maybe_network_wide_activation' );
+
+				if ( is_plugin_active_for_network( um_plugin ) ) {
+					// get all blogs
 					$blogs = get_sites();
 					if ( ! empty( $blogs ) ) {
 						foreach( $blogs as $blog ) {
@@ -456,8 +490,6 @@ if ( ! class_exists( 'UM' ) ) {
 						}
 					}
 				}
-			} else {
-				$this->single_site_activation();
 			}
 		}
 
@@ -509,6 +541,7 @@ if ( ! class_exists( 'UM' ) ) {
 		public function includes() {
 
 			$this->common();
+			$this->access();
 
 			if ( $this->is_request( 'ajax' ) ) {
 				$this->admin();
@@ -520,7 +553,6 @@ if ( ! class_exists( 'UM' ) ) {
 				$this->columns();
 				$this->admin()->notices();
 				$this->admin_navmenu();
-				$this->access();
 				$this->plugin_updater();
 				$this->theme_updater();
 			} elseif ( $this->is_request( 'admin' ) ) {
@@ -545,7 +577,6 @@ if ( ! class_exists( 'UM' ) ) {
 				$this->login();
 				$this->register();
 				$this->user_posts();
-				$this->access();
 				$this->logout();
 			}
 
@@ -906,28 +937,28 @@ if ( ! class_exists( 'UM' ) ) {
 		/**
 		 * @since 2.0
 		 *
-		 * @param $data array
+		 * @param bool|array $data
 		 * @return um\admin\core\Admin_Forms()
 		 */
 		function admin_forms( $data = false ) {
-			if ( empty( $this->classes['admin_forms_' . $data['class']] ) ) {
-				$this->classes['admin_forms_' . $data['class']] = new um\admin\core\Admin_Forms( $data );
+			if ( ! isset( $this->classes[ 'admin_forms_' . $data['class'] ] ) || empty( $this->classes[ 'admin_forms_' . $data['class'] ] ) ) {
+				$this->classes[ 'admin_forms_' . $data['class'] ] = new um\admin\core\Admin_Forms( $data );
 			}
-			return $this->classes['admin_forms_' . $data['class']];
+			return $this->classes[ 'admin_forms_' . $data['class'] ];
 		}
 
 
 		/**
 		 * @since 2.0
 		 *
-		 * @param $data array
+		 * @param bool|array $data
 		 * @return um\admin\core\Admin_Forms_Settings()
 		 */
 		function admin_forms_settings( $data = false ) {
-			if ( empty( $this->classes['admin_forms_settings_' . $data['class']] ) ) {
-				$this->classes['admin_forms_settings_' . $data['class']] = new um\admin\core\Admin_Forms_Settings( $data );
+			if ( ! isset( $this->classes[ 'admin_forms_settings_' . $data['class'] ] ) || empty( $this->classes[ 'admin_forms_settings_' . $data['class'] ] ) ) {
+				$this->classes[ 'admin_forms_settings_' . $data['class'] ] = new um\admin\core\Admin_Forms_Settings( $data );
 			}
-			return $this->classes['admin_forms_settings_' . $data['class']];
+			return $this->classes[ 'admin_forms_settings_' . $data['class'] ];
 		}
 
 

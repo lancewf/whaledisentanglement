@@ -45,9 +45,9 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 	public function ajax_action_hide_message() {
 		if ( empty( $_GET['item'] ) ) {
 			wp_die( '0' );
-		} else {
-			$message_item = $_GET['item'];
 		}
+
+		$message_item = $_GET['item'];
 
 		TablePress::check_nonce( 'hide_message', $message_item, '_wpnonce', true );
 
@@ -66,11 +66,11 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 	 * @since 1.0.0
 	 */
 	public function ajax_action_save_table() {
-		if ( empty( $_POST['tablepress'] ) || empty( $_POST['tablepress']['id'] ) ) {
+		if ( empty( $_POST['tablepress']['id'] ) ) {
 			wp_die( '-1' );
-		} else {
-			$edit_table = wp_unslash( $_POST['tablepress'] );
 		}
+
+		$edit_table = wp_unslash( $_POST['tablepress'] );
 
 		// Check if the submitted nonce matches the generated nonce we created earlier, dies -1 on failure.
 		TablePress::check_nonce( 'edit', $edit_table['id'], '_ajax_nonce', true );
@@ -108,7 +108,7 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 			$edit_table['visibility'] = (array) json_decode( $edit_table['visibility'], true );
 
 			// Check consistency of new table, and then merge with existing table.
-			$table = TablePress::$model_table->prepare_table( $existing_table, $edit_table, true, true );
+			$table = TablePress::$model_table->prepare_table( $existing_table, $edit_table, true );
 			if ( is_wp_error( $table ) ) {
 				// Add an error code to the existing WP_Error.
 				$table->add( 'ajax_save_table_prepare', '', $edit_table['id'] );
@@ -116,7 +116,7 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 				break;
 			}
 
-			// DataTables Custom Commands can only be edit by trusted users.
+			// DataTables Custom Commands can only be edited by trusted users.
 			if ( ! current_user_can( 'unfiltered_html' ) ) {
 				$table['options']['datatables_custom_commands'] = $existing_table['options']['datatables_custom_commands'];
 			}
@@ -191,11 +191,11 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 	 * @since 1.0.0
 	 */
 	public function ajax_action_preview_table() {
-		if ( empty( $_POST['tablepress'] ) || empty( $_POST['tablepress']['id'] ) ) {
+		if ( empty( $_POST['tablepress']['id'] ) ) {
 			wp_die( '-1' );
-		} else {
-			$preview_table = wp_unslash( $_POST['tablepress'] );
 		}
+
+		$preview_table = wp_unslash( $_POST['tablepress'] );
 
 		// Check if the submitted nonce matches the generated nonce we created earlier, dies -1 on failure.
 		TablePress::check_nonce( 'preview_table', $preview_table['id'], '_ajax_nonce', true );
@@ -225,12 +225,12 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 			$preview_table['visibility'] = (array) json_decode( $preview_table['visibility'], true );
 
 			// Check consistency of new table, and then merge with existing table.
-			$table = TablePress::$model_table->prepare_table( $existing_table, $preview_table, true, true );
+			$table = TablePress::$model_table->prepare_table( $existing_table, $preview_table, true );
 			if ( is_wp_error( $table ) ) {
 				break;
 			}
 
-			// DataTables Custom Commands can only be edit by trusted users.
+			// DataTables Custom Commands can only be edited by trusted users.
 			if ( ! current_user_can( 'unfiltered_html' ) ) {
 				$table['options']['datatables_custom_commands'] = $existing_table['options']['datatables_custom_commands'];
 			}

@@ -147,6 +147,7 @@ if ( ! class_exists( 'um\Config' ) ) {
 				'_um_has_profile_photo'         => 0,
 				'_um_has_cover_photo'           => 0,
 				'_um_show_these_users'          => '',
+				'_um_exclude_these_users'       => '',
 
 				'_um_sortby'                    => 'user_registered_desc',
 				'_um_sortby_custom'             => '',
@@ -481,7 +482,7 @@ if ( ! class_exists( 'um\Config' ) ) {
 					                   '{user_profile_link}<br /><br />' .
 					                   'Here is the submitted registration form:<br /><br />' .
 					                   '{submitted_registration}',
-					'description'   => __('Whether to receive notification when a new user account is approved','ultimate-member'),
+					'description'   => __('Whether to receive notification when a new user account is created','ultimate-member'),
 					'recipient'   => 'admin',
 					'default_active' => true
 				),
@@ -511,6 +512,7 @@ if ( ! class_exists( 'um\Config' ) ) {
 			//settings defaults
 			$this->settings_defaults = array(
 				'restricted_access_post_metabox'        => array( 'post' => 1, 'page' => 1 ),
+				'disable_restriction_pre_queries'       => 0,
 				'uninstall_on_delete'                   => 0,
 				'permalink_base'                        => 'user_login',
 				'display_name'                          => 'full_name',
@@ -520,12 +522,15 @@ if ( ! class_exists( 'um\Config' ) ) {
 				'use_gravatars'                         => 0,
 				'use_um_gravatar_default_builtin_image' => 'default',
 				'use_um_gravatar_default_image'         => 0,
-				'reset_require_strongpass'              => 0,
+				'require_strongpass'                    => 0,
+				'password_min_chars'                    => 8,
+				'password_max_chars'                    => 30,
 				'account_tab_password'                  => 1,
 				'account_tab_privacy'                   => 1,
 				'account_tab_notifications'             => 1,
 				'account_tab_delete'                    => 1,
-				'delete_account_text'                   => __('Are you sure you want to delete your account? This will erase all of your account data from the site. To delete your account enter your password below','ultimate-member'),
+				'delete_account_text'                   => __( 'Are you sure you want to delete your account? This will erase all of your account data from the site. To delete your account enter your password below.', 'ultimate-member' ),
+				'delete_account_no_pass_required_text'  => __( 'Are you sure you want to delete your account? This will erase all of your account data from the site. To delete your account, click on the button below.', 'ultimate-member' ),
 				'account_name'                          => 1,
 				'account_name_disable'                  => 0,
 				'account_name_require'                  => 1,
@@ -533,7 +538,6 @@ if ( ! class_exists( 'um\Config' ) ) {
 				'account_general_password'              => 0,
 				'account_hide_in_directory'             => 1,
 				'account_hide_in_directory_default'     => 'No',
-				'account_require_strongpass'            => 0,
 				'photo_thumb_sizes'                     => array( 40, 80, 190 ),
 				'cover_thumb_sizes'                     => array( 300, 600 ),
 				'accessible'                            => 0,
@@ -541,6 +545,8 @@ if ( ! class_exists( 'um\Config' ) ) {
 				'access_exclude_uris'                   => array(),
 				'home_page_accessible'                  => 1,
 				'category_page_accessible'              => 1,
+				'restricted_post_title_replace'         => 1,
+				'restricted_access_post_title'          => __( 'Restricted content', 'ultimate-member' ),
 				'restricted_access_message'             => '',
 				'restricted_blocks'                     => 0,
 				'enable_blocks'                         => 0,
@@ -563,6 +569,7 @@ if ( ! class_exists( 'um\Config' ) ) {
 				'mail_from'                             => get_bloginfo('name'),
 				'mail_from_addr'                        => get_bloginfo('admin_email'),
 				'email_html'                            => 1,
+				'image_orientation_by_exif'             => 0,
 				'image_compression'                     => 60,
 				'image_max_width'                       => 1000,
 				'cover_min_width'                       => 1000,
@@ -571,8 +578,10 @@ if ( ! class_exists( 'um\Config' ) ) {
 				'custom_roles_increment'                => 1,
 				'um_profile_object_cache_stop'          => 0,
 				'rest_api_version'                      => '2.0',
-				'member_directory_own_table'         => 0,
+				'member_directory_own_table'            => 0,
 				'profile_show_html_bio'                 => 0,
+				'profile_noindex'                       => 0,
+				'activation_link_expiry_time'           => '',
 			);
 
 			add_filter( 'um_get_tabs_from_config', '__return_true' );

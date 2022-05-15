@@ -6,7 +6,7 @@ echo "set mouse-=a" >> ~/.vimrc
 
 export MYSQL_PORT=3306
 export WHALEDISENTANGLEMENT_PORT=8080
-export PHP_PORT=9000
+export PHP_PORT=9001
 export SERVICE_NAME="whaledisentanglement"
 
 function htop() {
@@ -32,7 +32,7 @@ local_only=true
 
 "
 
-  export HAB_PHP="
+  export HAB_PHP_FPM="
 log_level = 'error'
 port = $PHP_PORT
 listen ='127.0.0.1'
@@ -57,7 +57,7 @@ function start() {
 
   start_sup
 
-  hab svc load $HAB_ORIGIN/$SERVICE_NAME --bind database:mysql.default --bind php:php.default
+  hab svc load $HAB_ORIGIN/$SERVICE_NAME --bind database:mysql.default --bind php:php-fpm.default
 
   wait_or_fail_for_port_to_listen $WHALEDISENTANGLEMENT_PORT
 
@@ -86,7 +86,7 @@ function start_php() {
 
   start_sup
 
-  hab svc load lancewf/php
+  hab svc load lancewf/php-fpm
 
   wait_or_fail_for_port_to_listen $PHP_PORT
 }

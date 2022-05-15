@@ -1,4 +1,4 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+<?php if ( ! defined( 'ABSPATH' ) ) exit;
 
 
 /**
@@ -8,35 +8,37 @@
  */
 function um_submit_form_errors_hook__blockedemails( $args ) {
 	$emails = UM()->options()->get( 'blocked_emails' );
-	if ( ! $emails )
+	if ( ! $emails ) {
 		return;
+	}
 
-	$emails = array_map("rtrim", explode("\n", $emails));
+	$emails = strtolower( $emails );
+	$emails = array_map( 'rtrim', explode( "\n", $emails ) );
 
 	if ( isset( $args['user_email'] ) && is_email( $args['user_email'] ) ) {
+		if ( in_array( strtolower( $args['user_email'] ), $emails ) ) {
+			exit( wp_redirect( esc_url( add_query_arg( 'err', 'blocked_email' ) ) ) );
+		}
 
-		$domain = explode('@', $args['user_email'] );
-		$check_domain = str_replace($domain[0], '*', $args['user_email']);
+		$domain       = explode( '@', $args['user_email'] );
+		$check_domain = str_replace( $domain[0], '*', $args['user_email'] );
 
-		if ( in_array( $args['user_email'], $emails ) )
-			exit( wp_redirect( esc_url(  add_query_arg('err', 'blocked_email') ) ) );
-
-		if ( in_array( $check_domain, $emails ) )
-			exit( wp_redirect( esc_url(  add_query_arg('err', 'blocked_domain') ) ) );
-
+		if ( in_array( strtolower( $check_domain ), $emails ) ) {
+			exit( wp_redirect( esc_url( add_query_arg( 'err', 'blocked_domain' ) ) ) );
+		}
 	}
 
 	if ( isset( $args['username'] ) && is_email( $args['username'] ) ) {
+		if ( in_array( strtolower( $args['username'] ), $emails ) ) {
+			exit( wp_redirect( esc_url( add_query_arg( 'err', 'blocked_email' ) ) ) );
+		}
 
-		$domain = explode('@', $args['username'] );
-		$check_domain = str_replace($domain[0], '*', $args['username']);
+		$domain       = explode( '@', $args['username'] );
+		$check_domain = str_replace( $domain[0], '*', $args['username'] );
 
-		if ( in_array( $args['username'], $emails ) )
-			exit( wp_redirect(  esc_url( add_query_arg('err', 'blocked_email') ) ) );
-
-		if ( in_array( $check_domain, $emails ) )
-			exit( wp_redirect(  esc_url(  add_query_arg('err', 'blocked_domain') ) ) );
-
+		if ( in_array( strtolower( $check_domain ), $emails ) ) {
+			exit( wp_redirect( esc_url( add_query_arg( 'err', 'blocked_domain' ) ) ) );
+		}
 	}
 }
 add_action( 'um_submit_form_errors_hook__blockedemails', 'um_submit_form_errors_hook__blockedemails', 10 );
@@ -47,18 +49,19 @@ add_action( 'um_submit_form_errors_hook__blockedemails', 'um_submit_form_errors_
  *
  * @param $args
  */
-function um_submit_form_errors_hook__blockedips($args){
-	$ips = UM()->options()->get('blocked_ips');
-	if ( !$ips )
+function um_submit_form_errors_hook__blockedips( $args ) {
+	$ips = UM()->options()->get( 'blocked_ips' );
+	if ( ! $ips ) {
 		return;
+	}
 
-	$ips = array_map("rtrim", explode("\n", $ips));
+	$ips = array_map( 'rtrim', explode( "\n", $ips ) );
 	$user_ip = um_user_ip();
 
-	foreach($ips as $ip) {
-		$ip = str_replace('*','',$ip);
-		if ( !empty( $ip ) && strpos($user_ip, $ip) === 0) {
-			exit( wp_redirect(  esc_url(  add_query_arg('err', 'blocked_ip') ) ) );
+	foreach ( $ips as $ip ) {
+		$ip = str_replace( '*', '', $ip );
+		if ( ! empty( $ip ) && strpos( $user_ip, $ip ) === 0 ) {
+			exit( wp_redirect( esc_url( add_query_arg( 'err', 'blocked_ip' ) ) ) );
 		}
 	}
 }
@@ -71,24 +74,25 @@ add_action( 'um_submit_form_errors_hook__blockedips', 'um_submit_form_errors_hoo
  * @param $args
  */
 function um_submit_form_errors_hook__blockedwords( $args ) {
+	$words = UM()->options()->get( 'blocked_words' );
+	if ( empty( $words ) ) {
+		return;
+	}
+
 	$form_id = $args['form_id'];
 	$mode = $args['mode'];
 	$fields = unserialize( $args['custom_fields'] );
 
-	$words = UM()->options()->get('blocked_words');
-	if ( $words != '' ) {
-
-		$words = array_map("rtrim", explode("\n", $words));
-		if ( ! empty( $fields ) && is_array( $fields ) ) {
-			foreach ( $fields as $key => $array ) {
-				if ( isset($array['validate']) && in_array( $array['validate'], array('unique_username','unique_email','unique_username_or_email') ) ) {
-					if ( ! UM()->form()->has_error( $key ) && isset( $args[$key] ) && in_array( $args[$key], $words ) ) {
-						UM()->form()->add_error( $key,  __('You are not allowed to use this word as your username.','ultimate-member') );
-					}
+	$words = strtolower( $words );
+	$words = array_map( 'rtrim', explode( "\n", $words ) );
+	if ( ! empty( $fields ) && is_array( $fields ) ) {
+		foreach ( $fields as $key => $array ) {
+			if ( isset( $array['validate'] ) && in_array( $array['validate'], array( 'unique_username', 'unique_email', 'unique_username_or_email' ) ) ) {
+				if ( ! UM()->form()->has_error( $key ) && isset( $args[ $key ] ) && in_array( strtolower( $args[ $key ] ), $words ) ) {
+					UM()->form()->add_error( $key, __( 'You are not allowed to use this word as your username.', 'ultimate-member' ) );
 				}
 			}
 		}
-
 	}
 }
 add_action( 'um_submit_form_errors_hook__blockedwords', 'um_submit_form_errors_hook__blockedwords', 10 );
@@ -100,13 +104,53 @@ add_action( 'um_submit_form_errors_hook__blockedwords', 'um_submit_form_errors_h
  * @param $args
  */
 function um_submit_form_errors_hook( $args ) {
-	$form_id = $args['form_id'];
-
 	$mode = $args['mode'];
 
-	$fields = unserialize( $args['custom_fields'] );
+	/**
+	 * UM hook
+	 *
+	 * @type action
+	 * @title um_submit_form_errors_hook__blockedips
+	 * @description Submit form validation
+	 * @input_vars
+	 * [{"var":"$args","type":"array","desc":"Form Arguments"}]
+	 * @change_log
+	 * ["Since: 2.0"]
+	 * @usage add_action( 'um_submit_form_errors_hook__blockedips', 'function_name', 10, 1 );
+	 * @example
+	 * <?php
+	 * add_action( 'um_submit_form_errors_hook__blockedips', 'my_submit_form_errors_hook__blockedips', 10, 1 );
+	 * function my_submit_form_errors_hook__blockedips( $args ) {
+	 *     // your code here
+	 * }
+	 * ?>
+	 */
+	do_action( 'um_submit_form_errors_hook__blockedips', $args );
+
+
+	/**
+	 * UM hook
+	 *
+	 * @type action
+	 * @title um_submit_form_errors_hook__blockedemails
+	 * @description Submit form validation
+	 * @input_vars
+	 * [{"var":"$args","type":"array","desc":"Form Arguments"}]
+	 * @change_log
+	 * ["Since: 2.0"]
+	 * @usage add_action( 'um_submit_form_errors_hook__blockedemails', 'function_name', 10, 1 );
+	 * @example
+	 * <?php
+	 * add_action( 'um_submit_form_errors_hook__blockedemails', 'my_submit_form_errors_hook__blockedemails', 10, 1 );
+	 * function my_submit_form_errors_hook__blockedemails( $args ) {
+	 *     // your code here
+	 * }
+	 * ?>
+	 */
+	do_action( 'um_submit_form_errors_hook__blockedemails', $args );
 
 	if ( $mode == 'register' ) {
+
 
 		/**
 		 * UM hook
@@ -127,51 +171,35 @@ function um_submit_form_errors_hook( $args ) {
 		 * }
 		 * ?>
 		 */
-		do_action( "um_submit_form_errors_hook__registration", $args );
+		do_action( 'um_submit_form_errors_hook__registration', $args );
 
-	}
-	/**
-	 * UM hook
-	 *
-	 * @type action
-	 * @title um_submit_form_errors_hook__blockedips
-	 * @description Submit form validation
-	 * @input_vars
-	 * [{"var":"$args","type":"array","desc":"Form Arguments"}]
-	 * @change_log
-	 * ["Since: 2.0"]
-	 * @usage add_action( 'um_submit_form_errors_hook__blockedips', 'function_name', 10, 1 );
-	 * @example
-	 * <?php
-	 * add_action( 'um_submit_form_errors_hook__blockedips', 'my_submit_form_errors_hook__blockedips', 10, 1 );
-	 * function my_submit_form_errors_hook__blockedips( $args ) {
-	 *     // your code here
-	 * }
-	 * ?>
-	 */
-	do_action( "um_submit_form_errors_hook__blockedips", $args );
-	/**
-	 * UM hook
-	 *
-	 * @type action
-	 * @title um_submit_form_errors_hook__blockedemails
-	 * @description Submit form validation
-	 * @input_vars
-	 * [{"var":"$args","type":"array","desc":"Form Arguments"}]
-	 * @change_log
-	 * ["Since: 2.0"]
-	 * @usage add_action( 'um_submit_form_errors_hook__blockedemails', 'function_name', 10, 1 );
-	 * @example
-	 * <?php
-	 * add_action( 'um_submit_form_errors_hook__blockedemails', 'my_submit_form_errors_hook__blockedemails', 10, 1 );
-	 * function my_submit_form_errors_hook__blockedemails( $args ) {
-	 *     // your code here
-	 * }
-	 * ?>
-	 */
-	do_action( "um_submit_form_errors_hook__blockedemails", $args );
+	} elseif ( $mode == 'profile' ) {
 
-	if ( $mode == 'login' ) {
+
+		/**
+		 * UM hook
+		 *
+		 * @type action
+		 * @title um_submit_form_errors_hook__registration
+		 * @description Submit registration form validation
+		 * @input_vars
+		 * [{"var":"$args","type":"array","desc":"Form Arguments"}]
+		 * @change_log
+		 * ["Since: 2.0"]
+		 * @usage add_action( 'um_submit_form_errors_hook__registration', 'function_name', 10, 1 );
+		 * @example
+		 * <?php
+		 * add_action( 'um_submit_form_errors_hook__profile', 'my_submit_form_errors_hook__profile', 10, 1 );
+		 * function my_submit_form_errors_registration( $args ) {
+		 *     // your code here
+		 * }
+		 * ?>
+		 */
+		do_action( 'um_submit_form_errors_hook__profile', $args );
+
+	} elseif ( $mode == 'login' ) {
+
+
 		/**
 		 * UM hook
 		 *
@@ -192,6 +220,8 @@ function um_submit_form_errors_hook( $args ) {
 		 * ?>
 		 */
 		do_action( 'um_submit_form_errors_hook_login', $args );
+
+
 		/**
 		 * UM hook
 		 *
@@ -213,7 +243,34 @@ function um_submit_form_errors_hook( $args ) {
 		 */
 		do_action( 'um_submit_form_errors_hook_logincheck', $args );
 
-	} else {
+	}
+
+
+	if ( $mode != 'login' ) {
+
+
+		/**
+		 * UM hook
+		 *
+		 * @type action
+		 * @title um_submit_form_errors_hook__blockedwords
+		 * @description Submit form validation
+		 * @input_vars
+		 * [{"var":"$args","type":"array","desc":"Form Arguments"}]
+		 * @change_log
+		 * ["Since: 2.0"]
+		 * @usage add_action( 'um_submit_form_errors_hook__blockedwords', 'function_name', 10, 1 );
+		 * @example
+		 * <?php
+		 * add_action( 'um_submit_form_errors_hook__blockedwords', 'my_submit_form_errors_hook__blockedwords', 10, 1 );
+		 * function my_submit_form_errors_hook__blockedwords( $args ) {
+		 *     // your code here
+		 * }
+		 * ?>
+		 */
+		do_action( 'um_submit_form_errors_hook__blockedwords', $args );
+
+
 		/**
 		 * UM hook
 		 *
@@ -234,26 +291,6 @@ function um_submit_form_errors_hook( $args ) {
 		 * ?>
 		 */
 		do_action( 'um_submit_form_errors_hook_', $args );
-		/**
-		 * UM hook
-		 *
-		 * @type action
-		 * @title um_submit_form_errors_hook__blockedwords
-		 * @description Submit form validation
-		 * @input_vars
-		 * [{"var":"$args","type":"array","desc":"Form Arguments"}]
-		 * @change_log
-		 * ["Since: 2.0"]
-		 * @usage add_action( 'um_submit_form_errors_hook__blockedwords', 'function_name', 10, 1 );
-		 * @example
-		 * <?php
-		 * add_action( 'um_submit_form_errors_hook__blockedwords', 'my_submit_form_errors_hook__blockedwords', 10, 1 );
-		 * function my_submit_form_errors_hook__blockedwords( $args ) {
-		 *     // your code here
-		 * }
-		 * ?>
-		 */
-		do_action( "um_submit_form_errors_hook__blockedwords", $args );
 
 	}
 
@@ -381,13 +418,25 @@ function um_submit_form_errors_hook_( $args ) {
 	$form_id = $args['form_id'];
 	$mode = $args['mode'];
 	$fields = unserialize( $args['custom_fields'] );
-	$um_profile_photo = um_profile('profile_photo');
 
+	$um_profile_photo = um_profile('profile_photo');
 	if ( get_post_meta( $form_id, '_um_profile_photo_required', true ) && ( empty( $args['profile_photo'] ) && empty( $um_profile_photo ) ) ) {
 		UM()->form()->add_error('profile_photo', __( 'Profile Photo is required.', 'ultimate-member' ) );
 	}
 
 	if ( ! empty( $fields ) ) {
+
+		$can_edit = false;
+		$current_user_roles = [];
+		if ( is_user_logged_in() ) {
+
+			$can_edit = UM()->roles()->um_current_user_can( 'edit', $args['user_id'] );
+
+			um_fetch_user( get_current_user_id() );
+			$current_user_roles = um_user( 'roles' );
+			um_reset_user();
+		}
+
 		foreach ( $fields as $key => $array ) {
 
 			if ( $mode == 'profile' ) {
@@ -397,12 +446,51 @@ function um_submit_form_errors_hook_( $args ) {
 				}
 			}
 
-			if ( isset( $array['public']  ) && -2 == $array['public'] && ! empty( $array['roles'] ) && is_user_logged_in() ) {
-				$current_user_roles = um_user( 'roles' );
-				if ( empty( $current_user_roles ) || count( array_intersect( $current_user_roles, $array['roles'] ) ) <= 0 ) {
-					continue;
+			$can_view = true;
+			if ( isset( $array['public'] ) && $mode != 'register' ) {
+
+				switch ( $array['public'] ) {
+					case '1': // Everyone
+						break;
+					case '2': // Members
+						if ( ! is_user_logged_in() ) {
+							$can_view = false;
+						}
+						break;
+					case '-1': // Only visible to profile owner and admins
+						if ( ! is_user_logged_in() ) {
+							$can_view = false;
+						} elseif ( $args['user_id'] != get_current_user_id() && ! $can_edit ) {
+							$can_view = false;
+						}
+						break;
+					case '-2': // Only specific member roles
+						if ( ! is_user_logged_in() ) {
+							$can_view = false;
+						} elseif ( ! empty( $array['roles'] ) && count( array_intersect( $current_user_roles, $array['roles'] ) ) <= 0 ) {
+							$can_view = false;
+						}
+						break;
+					case '-3': // Only visible to profile owner and specific roles
+						if ( ! is_user_logged_in() ) {
+							$can_view = false;
+						} elseif ( $args['user_id'] != get_current_user_id() && ! empty( $array['roles'] ) && count( array_intersect( $current_user_roles, $array['roles'] ) ) <= 0 ) {
+							$can_view = false;
+						}
+						break;
+					default:
+						$can_view = apply_filters( 'um_can_view_field_custom', $can_view, $array );
+						break;
 				}
+
 			}
+
+			$can_view = apply_filters( 'um_can_view_field', $can_view, $array );
+
+			if ( ! $can_view ) {
+				continue;
+			}
+
 
 			/**
 			 * UM hook
@@ -457,10 +545,10 @@ function um_submit_form_errors_hook_( $args ) {
 				UM()->form()->add_error( $key, sprintf( __( '%s is required.', 'ultimate-member' ), $array['title'] ) );
 			}
 
-			if ( $key == 'role_select' || $key == 'role_radio' ) {
-				if ( isset( $array['required'] ) && $array['required'] == 1 && ( ! isset( $args['role'] ) || empty( $args['role'] ) ) ) {
-					UM()->form()->add_error( 'role', __( 'Please specify account type.', 'ultimate-member' ) );
-				}
+			/* WordPress uses the default user role if the role wasn't chosen in the registration form. That is why we should use submitted data to validate fields Roles (Radio) and Roles (Dropdown). */
+			if ( in_array( $key, array( 'role_radio', 'role_select' ) ) && isset( $array['required'] ) && $array['required'] == 1 && empty( UM()->form()->post_form['submitted']['role'] ) ) {
+				UM()->form()->add_error( 'role', __( 'Please specify account type.', 'ultimate-member' ) );
+				UM()->form()->post_form[ $key ] = '';
 			}
 
 			/**
@@ -505,21 +593,27 @@ function um_submit_form_errors_hook_( $args ) {
 				}
 
 				if ( isset( $array['min_chars'] ) && $array['min_chars'] > 0 ) {
-					if ( $args[ $key ] && strlen( utf8_decode( $args[ $key ] ) ) < $array['min_chars'] ) {
-						UM()->form()->add_error( $key, sprintf( __( 'Your %s must contain at least %s characters', 'ultimate-member' ), $array['label'], $array['min_chars'] ) );
+					if ( $args[ $key ] && mb_strlen( $args[ $key ] ) < $array['min_chars'] ) {
+						if ( empty( $array['label'] ) ) {
+							UM()->form()->add_error( $key, sprintf( __( 'This field must contain at least %s characters', 'ultimate-member' ), $array['min_chars'] ) );
+						} else {
+							UM()->form()->add_error( $key, sprintf( __( 'Your %s must contain at least %s characters', 'ultimate-member' ), $array['label'], $array['min_chars'] ) );
+						}
 					}
 				}
 
 				if ( isset( $array['max_chars'] ) && $array['max_chars'] > 0 ) {
-					if ( $args[ $key ] && strlen( utf8_decode( $args[ $key ] ) ) > $array['max_chars'] ) {
-						UM()->form()->add_error( $key, sprintf( __( 'Your %s must contain less than %s characters', 'ultimate-member' ), $array['label'], $array['max_chars'] ) );
+					if ( $args[ $key ] && mb_strlen( $args[ $key ] ) > $array['max_chars'] ) {
+						if ( empty( $array['label'] ) ) {
+							UM()->form()->add_error( $key, sprintf( __( 'This field must contain less than %s characters', 'ultimate-member' ), $array['max_chars'] ) );
+						} else {
+							UM()->form()->add_error( $key, sprintf( __( 'Your %s must contain less than %s characters', 'ultimate-member' ), $array['label'], $array['max_chars'] ) );
+						}
 					}
 				}
 
-				$profile_show_html_bio = UM()->options()->get( 'profile_show_html_bio' );
-
-				if ( $profile_show_html_bio == 1 && $key !== 'description' ) {
-					if ( isset( $array['html'] ) && $array['html'] == 0 ) {
+				if ( isset( $array['type'] ) && $array['type'] == 'textarea' && UM()->profile()->get_show_bio_key( $args ) !== $key ) {
+					if ( ! isset( $array['html'] ) || $array['html'] == 0 ) {
 						if ( wp_strip_all_tags( $args[ $key ] ) != trim( $args[ $key ] ) ) {
 							UM()->form()->add_error( $key, __( 'You can not use HTML tags here', 'ultimate-member' ) );
 						}
@@ -528,7 +622,7 @@ function um_submit_form_errors_hook_( $args ) {
 
 				if ( isset( $array['force_good_pass'] ) && $array['force_good_pass'] == 1 ) {
 					if ( ! UM()->validation()->strong_pass( $args[ $key ] ) ) {
-						UM()->form()->add_error( $key, __('Your password must contain at least one lowercase letter, one capital letter and one number', 'ultimate-member' ) );
+						UM()->form()->add_error( $key, __( 'Your password must contain at least one lowercase letter, one capital letter and one number', 'ultimate-member' ) );
 					}
 				}
 
@@ -613,6 +707,12 @@ function um_submit_form_errors_hook_( $args ) {
 							}
 							break;
 
+						case 'telegram_url':
+							if ( ! UM()->validation()->is_url( $args[ $key ], 't.me' ) ) {
+								UM()->form()->add_error( $key, sprintf( __( 'Please enter a valid %s username or profile URL', 'ultimate-member' ), $array['label'] ) );
+							}
+							break;
+
 						case 'soundcloud_url':
 							if ( ! UM()->validation()->is_url( $args[ $key ], 'soundcloud.com' ) ) {
 								UM()->form()->add_error( $key, sprintf( __( 'Please enter a valid %s username or profile URL','ultimate-member'), $array['label'] ) );
@@ -656,15 +756,15 @@ function um_submit_form_errors_hook_( $args ) {
 							}
 							break;
 
-						case 'url':
-							if ( ! UM()->validation()->is_url( $args[ $key ] ) ) {
-								UM()->form()->add_error( $key, __( 'Please enter a valid URL', 'ultimate-member' ) );
+						case 'discord':
+							if ( ! UM()->validation()->is_discord_id( $args[ $key ] ) ) {
+								UM()->form()->add_error( $key, __( 'Please enter a valid Discord ID', 'ultimate-member' ) );
 							}
 							break;
 
-						case 'skype':
-							if ( ! UM()->validation()->is_url( $args[ $key ], 'skype.com' ) ) {
-								UM()->form()->add_error( $key, sprintf( __( 'Please enter a valid %s username or profile URL', 'ultimate-member' ), $array['label'] ) );
+						case 'url':
+							if ( ! UM()->validation()->is_url( $args[ $key ] ) ) {
+								UM()->form()->add_error( $key, __( 'Please enter a valid URL', 'ultimate-member' ) );
 							}
 							break;
 
@@ -673,7 +773,7 @@ function um_submit_form_errors_hook_( $args ) {
 							if ( $args[ $key ] == '' ) {
 								UM()->form()->add_error( $key, __( 'You must provide a username', 'ultimate-member' ) );
 							} elseif ( $mode == 'register' && username_exists( sanitize_user( $args[ $key ] ) ) ) {
-								UM()->form()->add_error( $key, __( 'Your username is already taken', 'ultimate-member' ) );
+								UM()->form()->add_error( $key, __( 'The username you entered is incorrect', 'ultimate-member' ) );
 							} elseif ( is_email( $args[ $key ] ) ) {
 								UM()->form()->add_error( $key, __( 'Username cannot be an email', 'ultimate-member' ) );
 							} elseif ( ! UM()->validation()->safe_username( $args[ $key ] ) ) {
@@ -685,11 +785,11 @@ function um_submit_form_errors_hook_( $args ) {
 						case 'unique_username_or_email':
 
 							if ( $args[ $key ] == '' ) {
-								UM()->form()->add_error( $key, __( 'You must provide a username', 'ultimate-member' ) );
+								UM()->form()->add_error( $key, __( 'You must provide a username or email', 'ultimate-member' ) );
 							} elseif ( $mode == 'register' && username_exists( sanitize_user( $args[ $key ] ) ) ) {
-								UM()->form()->add_error( $key, __( 'Your username is already taken', 'ultimate-member' ) );
+								UM()->form()->add_error( $key, __( 'The username you entered is incorrect', 'ultimate-member' ) );
 							} elseif ( $mode == 'register' && email_exists( $args[ $key ] ) ) {
-								UM()->form()->add_error( $key, __( 'This email is already linked to an existing account', 'ultimate-member' ) );
+								UM()->form()->add_error( $key, __( 'The email you entered is incorrect', 'ultimate-member' ) );
 							} elseif ( ! UM()->validation()->safe_username( $args[ $key ] ) ) {
 								UM()->form()->add_error( $key, __( 'Your username contains invalid characters', 'ultimate-member' ) );
 							}
@@ -711,11 +811,11 @@ function um_submit_form_errors_hook_( $args ) {
 								if ( $args[ $key ] == '' && in_array( $key, array( 'user_email' ) ) ) {
 									UM()->form()->add_error( $key, __( 'You must provide your email', 'ultimate-member' ) );
 								} elseif ( in_array( $mode, array( 'register' ) ) && $email_exists  ) {
-									UM()->form()->add_error( $key, __( 'This email is already linked to an existing account', 'ultimate-member' ) );
+									UM()->form()->add_error( $key, __( 'The email you entered is incorrect', 'ultimate-member' ) );
 								} elseif ( in_array( $mode, array( 'profile' ) ) && $email_exists && $email_exists != $args['user_id']  ) {
-									UM()->form()->add_error( $key, __( 'This email is already linked to an existing account', 'ultimate-member' ) );
-								} elseif ( !is_email( $args[ $key ] ) ) {
-									UM()->form()->add_error( $key, __( 'This is not a valid email', 'ultimate-member') );
+									UM()->form()->add_error( $key, __( 'The email you entered is incorrect', 'ultimate-member' ) );
+								} elseif ( ! is_email( $args[ $key ] ) ) {
+									UM()->form()->add_error( $key, __( 'The email you entered is incorrect', 'ultimate-member') );
 								} elseif ( ! UM()->validation()->safe_username( $args[ $key ] ) ) {
 									UM()->form()->add_error( $key,  __( 'Your email contains invalid characters', 'ultimate-member' ) );
 								}
@@ -723,16 +823,16 @@ function um_submit_form_errors_hook_( $args ) {
 							} else {
 
 								if ( $args[ $key ] != '' && ! is_email( $args[ $key ] ) ) {
-									UM()->form()->add_error( $key, __( 'This is not a valid email', 'ultimate-member' ) );
+									UM()->form()->add_error( $key, __( 'The email you entered is incorrect', 'ultimate-member' ) );
 								} elseif ( $args[ $key ] != '' && email_exists( $args[ $key ] ) ) {
-									UM()->form()->add_error( $key, __( 'This email is already linked to an existing account', 'ultimate-member' ) );
+									UM()->form()->add_error( $key, __( 'The email you entered is incorrect', 'ultimate-member' ) );
 								} elseif ( $args[ $key ] != '' ) {
 
 									$users = get_users( 'meta_value=' . $args[ $key ] );
 
 									foreach ( $users as $user ) {
 										if ( $user->ID != $args['user_id'] ) {
-											UM()->form()->add_error( $key, __( 'This email is already linked to an existing account', 'ultimate-member' ) );
+											UM()->form()->add_error( $key, __( 'The email you entered is incorrect', 'ultimate-member' ) );
 										}
 									}
 
@@ -805,7 +905,7 @@ function um_submit_form_errors_hook_( $args ) {
 				$profile_show_bio = UM()->options()->get( 'profile_show_bio' );
 
 				if ( $profile_show_bio ) {
-					if ( strlen( utf8_decode( str_replace( array( "\r\n", "\n", "\r\t", "\t" ), ' ', $args['description'] ) ) ) > $max_chars && $max_chars ) {
+					if ( mb_strlen( str_replace( array( "\r\n", "\n", "\r\t", "\t" ), ' ', $args['description'] ) ) > $max_chars && $max_chars ) {
 						UM()->form()->add_error( 'description', sprintf( __( 'Your user description must contain less than %s characters', 'ultimate-member' ), $max_chars ) );
 					}
 				}
@@ -816,3 +916,19 @@ function um_submit_form_errors_hook_( $args ) {
 	}
 }
 add_action( 'um_submit_form_errors_hook_', 'um_submit_form_errors_hook_', 10 );
+
+
+/**
+ * @param string $url
+ *
+ * @return string
+ */
+function um_invalid_nonce_redirect_url( $url ) {
+	$url = add_query_arg( [
+		'um-hash'   => substr( md5( rand() ), 0, 6 ),
+	], remove_query_arg( 'um-hash', $url ) );
+
+	return $url;
+}
+add_filter( 'um_login_invalid_nonce_redirect_url', 'um_invalid_nonce_redirect_url', 10, 1 );
+add_filter( 'um_register_invalid_nonce_redirect_url', 'um_invalid_nonce_redirect_url', 10, 1 );

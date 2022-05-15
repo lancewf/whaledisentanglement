@@ -125,15 +125,15 @@ if ( ! class_exists( 'um\admin\core\Admin_Menu' ) ) {
 			if ( is_array( $menu ) ) {
 				foreach ( $menu as $key => $menu_item ) {
 					if ( 0 === strpos( $menu_item[0], _x( 'Users', 'Admin menu name' ) ) ) {
-						$menu[ $key ][0] .= ' <span class="update-plugins count-'.$count.'"><span class="processing-count">'.$count.'</span></span>';
+						$menu[ $key ][0] .= ' <span class="update-plugins count-' . $count . '"><span class="processing-count">' . $count . '</span></span>';
 					}
 				}
 			}
 
-			if ( is_array( $submenu ) ) {
+			if ( is_array( $submenu ) && isset( $submenu['users.php'] ) ) {
 				foreach ( $submenu['users.php'] as $key => $menu_item ) {
 					if ( 0 === strpos( $menu_item[0], _x( 'All Users', 'Admin menu name' ) ) ) {
-						$submenu['users.php'][ $key ][0] .= ' <span class="update-plugins count-'.$count.'"><span class="processing-count">'.$count.'</span></span>';
+						$submenu['users.php'][ $key ][0] .= ' <span class="update-plugins count-' .$count . '"><span class="processing-count">' . $count . '</span></span>';
 					}
 				}
 			}
@@ -191,7 +191,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Menu' ) ) {
 		function um_roles_pages() {
 			if ( empty( $_GET['tab'] ) ) {
 				include_once um_path . 'includes/admin/core/list-tables/roles-list-table.php';
-			} elseif ( sanitize_key( $_GET['tab'] ) == 'add' || sanitize_key( $_GET['tab'] ) == 'edit' ) {
+			} elseif ( 'add' === sanitize_key( $_GET['tab'] ) || 'edit' === sanitize_key( $_GET['tab'] ) ) {
 				include_once um_path . 'includes/admin/templates/role/role-edit.php';
 			} else {
 				um_js_redirect( add_query_arg( array( 'page' => 'um_roles' ), get_admin_url( 'admin.php' ) ) );
@@ -218,8 +218,6 @@ if ( ! class_exists( 'um\admin\core\Admin_Menu' ) ) {
 			/** custom metaboxes for dashboard defined here **/
 			add_meta_box( 'um-metaboxes-contentbox-1', __( 'Users Overview', 'ultimate-member' ), array( &$this, 'users_overview' ), $this->pagehook, 'core', 'core' );
 
-			add_meta_box( 'um-metaboxes-mainbox-1', __( 'Latest from our blog', 'ultimate-member' ), array( &$this, 'um_news' ), $this->pagehook, 'normal', 'core' );
-
 			add_meta_box( 'um-metaboxes-sidebox-1', __( 'Purge Temp Files', 'ultimate-member' ), array( &$this, 'purge_temp' ), $this->pagehook, 'side', 'core' );
 
 			add_meta_box( 'um-metaboxes-sidebox-2', __( 'User Cache', 'ultimate-member' ), array( &$this, 'user_cache' ), $this->pagehook, 'side', 'core' );
@@ -229,14 +227,6 @@ if ( ! class_exists( 'um\admin\core\Admin_Menu' ) ) {
 			if ( 0 < count( $exts ) ) {
 				add_meta_box( 'um-metaboxes-sidebox-3', __( 'Upgrade\'s Manual Request', 'ultimate-member' ), array( &$this, 'upgrade_request' ), $this->pagehook, 'side', 'core' );
 			}
-		}
-
-
-		/**
-		 *
-		 */
-		function um_news() {
-			include_once UM()->admin()->templates_path . 'dashboard/feed.php';
 		}
 
 
@@ -285,6 +275,11 @@ if ( ! class_exists( 'um\admin\core\Admin_Menu' ) ) {
 				$size = 0;
 
 				foreach( new \RecursiveIteratorIterator( new \RecursiveDirectoryIterator( $directory ) ) as $file ) {
+					$filename = $file->getFilename();
+					if ( $filename == '.' || $filename == '..' ) {
+						continue;
+					}
+
 					$size += $file->getSize();
 				}
 				return round ( $size / 1048576, 2);

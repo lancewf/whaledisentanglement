@@ -744,7 +744,7 @@ a.um-link-alt:hover {text-decoration: underline !important;}
 	-moz-border-radius: 5px;
 	-webkit-border-radius: 5px;
 	border-radius: 5px;
-	z-index: 10;
+	z-index: 55;
 	display: none;
     border: 1px solid #e5e5e5;
 	box-sizing: border-box;
@@ -1056,4 +1056,9 @@ small.um-max-filesize span{
 }
 .um-field-multiselect .um-field-area.um-field-area-has-icon ul:first-child {
 	margin-left: 30px !important;
+}
+
+.um-field-area .wp-switch-editor{
+	float: none;
+	height: auto;
 }

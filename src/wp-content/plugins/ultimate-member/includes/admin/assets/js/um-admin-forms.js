@@ -1,5 +1,53 @@
-jQuery(document).ready( function() {
+function um_admin_init_users_select() {
+	if ( jQuery('.um-user-select-field').length ) {
+		var select2_atts = {
+			ajax: {
+				url: wp.ajax.settings.url,
+				dataType: 'json',
+				delay: 250, // delay in ms while typing when to perform a AJAX search
+				data: function( params ) {
+					return {
+						search: params.term, // search query
+						action: 'um_get_users', // AJAX action for admin-ajax.php
+						page: params.page || 1, // infinite scroll pagination
+						nonce: um_admin_scripts.nonce
+					};
+				},
+				processResults: function( response, params ) {
+					params.page = params.page || 1;
+					var options = [];
 
+					if ( response.data.users ) {
+						jQuery.each( response.data.users, function( index, text ) {
+							options.push( { id: text.ID, text: text.user_login + ' (#' + text.ID + ')' } );
+						});
+					}
+
+					return {
+						results: options,
+						pagination: {
+							more: ( params.page * 20 ) < response.data.total_count
+						}
+					};
+				},
+				cache: true
+			},
+			minimumInputLength: 0, // the minimum of symbols to input before perform a search
+			allowClear: true,
+			width: "100%",
+			allowHtml: true,
+			dropdownCssClass: 'um-select2-users-dropdown',
+			containerCssClass : 'um-select2-users-container',
+			placeholder: jQuery(this).data('placeholder')
+		};
+
+		jQuery('.um-user-select-field').select2( select2_atts );
+	}
+}
+
+
+jQuery(document).ready( function() {
+	um_admin_init_users_select();
 
 	/**
 	 * Same page upgrade field
@@ -177,7 +225,7 @@ jQuery(document).ready( function() {
 		}
 	});
 
-	jQuery( '.um-forms-line[data-field_type="md_sorting_fields"] .um-multi-selects-add-option' ).click( function() {
+	jQuery( '.um-forms-line[data-field_type="md_sorting_fields"] .um-multi-selects-add-option' ).on('click', function() {
 		var list = jQuery(this).siblings('ul.um-multi-selects-list');
 
 		var sortable = list.hasClass( 'um-sortable-multi-selects' );
@@ -238,7 +286,7 @@ jQuery(document).ready( function() {
 		jQuery( this ).parents( 'li.um-md-default-filters-option-line' ).remove();
 	});
 
-	jQuery( '.um-multi-selects-add-option' ).click( function() {
+	jQuery( '.um-multi-selects-add-option' ).on('click', function() {
 		if ( jQuery(this).parents( '.um-forms-line[data-field_type="md_sorting_fields"]' ).length ) {
 			return;
 		}
@@ -483,10 +531,10 @@ jQuery(document).ready( function() {
 	});
 
 	function um_set_range_label( slider, ui ) {
-		console.log( slider );
 		var placeholder = '';
 		var placeholder_s = slider.siblings( '.um-slider-range' ).data( 'placeholder-s' );
 		var placeholder_p = slider.siblings( '.um-slider-range' ).data( 'placeholder-p' );
+		var um_range_min, um_range_max;
 
 		if ( ui ) {
 			if ( ui.values[ 0 ] === ui.values[ 1 ] ) {
@@ -499,6 +547,8 @@ jQuery(document).ready( function() {
 					.replace( '\{field_label\}', slider.siblings( '.um-slider-range' )
 						.data('label') );
 			}
+			um_range_min = ui.values[0];
+			um_range_max = ui.values[1];
 		} else {
 			if ( slider.slider( "values", 0 ) === slider.slider( "values", 1 ) ) {
 				placeholder = placeholder_s.replace( '\{value\}', slider.slider( "values", 0 ) )
@@ -510,15 +560,17 @@ jQuery(document).ready( function() {
 					.replace( '\{field_label\}', slider.siblings( '.um-slider-range' )
 						.data('label') );
 			}
+			um_range_min = slider.slider( "values", 0 );
+			um_range_max = slider.slider( "values", 1 );
 		}
 		slider.siblings( '.um-slider-range' ).html( placeholder );
 
-		slider.siblings( ".um_range_min" ).val( slider.slider( "values", 0 ) );
-		slider.siblings( ".um_range_max" ).val( slider.slider( "values", 1 ) );
+		slider.siblings( ".um_range_min" ).val( um_range_min );
+		slider.siblings( ".um_range_max" ).val( um_range_max );
 	}
 
 
-	jQuery( '.um-md-default-filters-add-option' ).click( function() {
+	jQuery( '.um-md-default-filters-add-option' ).on('click', function() {
 		if ( um_member_dir_filters_busy ) {
 			return;
 		}
@@ -554,10 +606,9 @@ jQuery(document).ready( function() {
 	});
 
 
-	jQuery( '.um-multi-text-add-option' ).click( function() {
+	jQuery( '.um-multi-text-add-option' ).on('click', function() {
 		var list = jQuery(this).siblings( 'ul.um-multi-text-list' );
 
-		var field_id = list.data( 'field_id' );
 		var k = 0;
 		if ( list.find( 'li:last input.um-forms-field' ).length > 0 ) {
 			k = list.find( 'li:last input.um-forms-field' ).attr('id').split("-");
@@ -566,7 +617,7 @@ jQuery(document).ready( function() {
 
 		var text_html = jQuery( '<div>' ).append( list.siblings('.um-hidden-multi-text').clone() ).html();
 
-		var classes = list.find('li:last').attr('class');
+		var classes = list.data('item_class');
 
 		list.append(
 			'<li class="' + classes + '"><span class="um-field-wrapper">' + text_html +
@@ -602,7 +653,7 @@ jQuery(document).ready( function() {
 	if ( typeof wp !== 'undefined' && wp.media && wp.media.editor ) {
 		var frame;
 
-		jQuery( '.um-set-image' ).click( function(e) {
+		jQuery( '.um-set-image' ).on('click', function(e) {
 			var button = jQuery(this);
 
 			e.preventDefault();
@@ -648,11 +699,11 @@ jQuery(document).ready( function() {
 			frame.open();
 		});
 
-		jQuery('.icon_preview').click( function(e) {
+		jQuery('.icon_preview').on('click', function(e) {
 			jQuery(this).siblings('.um-set-image').trigger('click');
 		});
 
-		jQuery('.um-clear-image').click( function(e) {
+		jQuery('.um-clear-image').on('click', function(e) {
 			var clear_button = jQuery(this);
 			var default_image_url = clear_button.siblings('.um-forms-field').data('default');
 			clear_button.siblings('.um-set-image').show();
@@ -774,10 +825,20 @@ jQuery(document).ready( function() {
 						if ( input_type === 'checkbox' ) {
 							own_condition = ( value == '1' ) ? cond_field.is(':checked') : ! cond_field.is(':checked');
 						} else {
-							own_condition = ( cond_field.val() == value );
+							if ( Array.isArray( value ) ) {
+								own_condition = ( value.indexOf( cond_field.val() ) !== -1 );
+							} else {
+								own_condition = ( cond_field.val() == value );
+							}
 						}
 					} else if ( tagName === 'select' ) {
-						own_condition = ( cond_field.val() == value );
+
+						if ( Array.isArray( value ) ) {
+							own_condition = ( value.indexOf( cond_field.val() ) !== -1 );
+						} else {
+							own_condition = ( cond_field.val() == value );
+						}
+
 					}
 
 					if ( own_condition && parent_condition ) {
@@ -794,10 +855,22 @@ jQuery(document).ready( function() {
 					if ( input_type == 'checkbox' ) {
 						own_condition = ( value == '1' ) ? condition_field.is(':checked') : ! condition_field.is(':checked');
 					} else {
-						own_condition = ( condition_field.val() == value );
+
+						if ( Array.isArray( value ) ) {
+							own_condition = ( value.indexOf( condition_field.val() ) !== -1 );
+						} else {
+							own_condition = ( condition_field.val() == value );
+						}
+
 					}
 				} else if ( tagName == 'select' ) {
-					own_condition = ( condition_field.val() == value );
+
+					if ( Array.isArray( value ) ) {
+						own_condition = ( value.indexOf( condition_field.val() ) !== -1 );
+					} else {
+						own_condition = ( condition_field.val() == value );
+					}
+
 				}
 
 				return ( own_condition && parent_condition );

@@ -66,12 +66,6 @@ $premium['social-login'] = array(
 	'desc' => 'Let users register & login to your site via Facebook, Twitter, G+, LinkedIn, and more',
 );
 
-$premium['instagram'] = array(
-	'url' => 'https://ultimatemember.com/extensions/instagram/',
-	'name' => 'Instagram',
-	'desc' => 'Allow users to show their Instagram photos on their profile',
-);
-
 $premium['user-tags'] = array(
 	'url' => 'https://ultimatemember.com/extensions/user-tags/',
 	'name' => 'User Tags',
@@ -134,11 +128,23 @@ $premium['user-locations'] = array(
 	'desc' => 'Using the Google Maps API, display users on a map on the member directory page and allow users to add their location via their profile',
 );
 
-//$premium['profile-tabs'] = array(
-//	'url' => 'https://ultimatemember.com/extensions/profile-tabs/',
-//	'name' => 'Profile Tabs',
-//	'desc' => 'Allow users to add custom tabs to profiles',
-//);
+$premium['user-notes'] = array(
+	'url' => 'https://ultimatemember.com/extensions/user-notes/',
+	'name' => 'User Notes',
+	'desc' => 'Allow users to create public and private notes from their profile',
+);
+
+$premium['profile-tabs'] = array(
+	'url' => 'https://ultimatemember.com/extensions/profile-tabs/',
+	'name' => 'Profile Tabs',
+	'desc' => 'Add custom tabs to profiles',
+);
+
+$free['jobboardwp'] = array(
+	'url' => 'https://wordpress.org/plugins/um-jobboardwp',
+	'name' => 'JobBoardWP',
+	'desc' => 'Integrates Ultimate Member with the job board plugin <a href="https://wordpress.org/plugins/jobboardwp" target="_blank">JobBoardWP</a>',
+);
 
 $free['forumwp'] = array(
 	'url' => 'https://ultimatemember.com/extensions/forumwp/',

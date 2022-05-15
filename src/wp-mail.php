@@ -77,6 +77,9 @@ for ( $i = 1; $i <= $count; $i++ ) {
 	$content_transfer_encoding = '';
 	$post_author               = 1;
 	$author_found              = false;
+	$post_date                 = null;
+	$post_date_gmt             = null;
+
 	foreach ( $message as $line ) {
 		// Body signal.
 		if ( strlen( $line ) < 3 ) {
@@ -213,7 +216,7 @@ for ( $i = 1; $i <= $count; $i++ ) {
 
 	$post_title = xmlrpc_getposttitle( $content );
 
-	if ( '' === $post_title ) {
+	if ( '' === trim( $post_title ) ) {
 		$post_title = $subject;
 	}
 

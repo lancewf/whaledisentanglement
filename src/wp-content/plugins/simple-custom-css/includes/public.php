@@ -13,60 +13,16 @@ if ( ! defined( 'SCCSS_FILE' ) ) {
 }
 
 /**
- * Enqueue link to add CSS through PHP.
+ * Print inline style element.
  *
- * This is a typical WP Enqueue statement, except that the URL of the stylesheet is simply a query var.
- * This query var is passed to the URL, and when it is detected by scss_maybe_print_css(),
- * it writes its PHP/CSS to the browser.
- *
- * @since  1.0.0
- *
- * @action wp_enqueue_scripts, 99
+ * @since 4.0.5
  */
-function sccss_register_style() {
-	$url = home_url();
-
-	if ( is_ssl() ) {
-		$url = home_url( '/', 'https' );
-	}
-
-	wp_register_style( // phpcs:ignore WordPress.WP.EnqueuedResourceParameters
-		'sccss_style',
-		add_query_arg(
-			array(
-				'sccss' => 1,
-			),
-			$url
-		)
-	);
-
-	wp_enqueue_style( 'sccss_style' );
-}
-
-add_action( 'wp_enqueue_scripts', 'sccss_register_style', 99 );
-
-/**
- * If the query var is set, print the Simple Custom CSS rules.
- *
- * @since  1.0.0
- *
- * @action plugins_loaded
- */
-function sccss_maybe_print_css() {
-
-	// Only print CSS if this is a stylesheet request.
-	if ( ! isset( $_GET['sccss'] ) || intval( $_GET['sccss'] ) !== 1 ) {  // phpcs:ignore WordPress.Security.NonceVerification
-		return;
-	}
-
-	ob_start();
-	header( 'Content-type: text/css' );
-
+function sccss_print_inline_css() {
+	echo '<style id="sccss">';
 	sccss_the_css();
-
-	die();
+	echo '</style>';
 }
-add_action( 'plugins_loaded', 'sccss_maybe_print_css' );
+add_action( 'wp_head', 'sccss_print_inline_css', 101 );
 
 /**
  * Echo the CSS.
@@ -78,5 +34,5 @@ function sccss_the_css() {
 	$raw_content = isset( $options['sccss-content'] ) ? $options['sccss-content'] : '';
 	$content     = wp_kses( $raw_content, array( '\'', '\"' ) );
 	$content     = str_replace( '&gt;', '>', $content );
-	echo $content; // phpcs:ignore WordPress.Security.EscapeOutput
+	echo strip_tags( $content ); // phpcs:ignore WordPress.Security.EscapeOutput
 }

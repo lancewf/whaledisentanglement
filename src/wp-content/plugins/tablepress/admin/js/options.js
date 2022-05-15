@@ -9,7 +9,7 @@
 
 /* global confirm, tablepress_strings */
 
-jQuery( document ).ready( function( $ ) {
+jQuery( function( $ ) {
 
 	'use strict';
 
@@ -20,7 +20,7 @@ jQuery( document ).ready( function( $ ) {
 	 */
 	$( '#option-use-custom-css' ).on( 'change', function() {
 		$( '#option-custom-css' ).prop( 'disabled', ! $(this).prop( 'checked' ) );
-	} ).change();
+	} ).trigger( 'change' );
 
 	/**
 	 * On form submit: Enable disabled fields, so that they are transmitted in the POST request.
@@ -39,9 +39,9 @@ jQuery( document ).ready( function( $ ) {
 	$( '#uninstall-tablepress' ).on( 'click', function() {
 		if ( confirm( tablepress_strings.uninstall_warning_1 ) ) {
 			return confirm( tablepress_strings.uninstall_warning_2 );
-		} else {
-			return false;
 		}
+
+		return false;
 	} );
 
 } );

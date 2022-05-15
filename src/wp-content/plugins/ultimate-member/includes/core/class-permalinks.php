@@ -30,18 +30,11 @@ if ( ! class_exists( 'um\core\Permalinks' ) ) {
 		 * Permalinks constructor.
 		 */
 		function __construct() {
-
 			add_action( 'init',  array( &$this, 'set_current_url' ), 0 );
 
 			add_action( 'init',  array( &$this, 'check_for_querystrings' ), 1 );
 
 			add_action( 'init',  array( &$this, 'activate_account_via_email_link' ), 1 );
-
-			//add_action( 'um_user_after_updating_profile', array( &$this, 'profile_url' ), 1 );
-
-			remove_action( 'wp_head', 'rel_canonical' );
-
-			add_action( 'wp_head',  array( &$this, 'um_rel_canonical_' ), 9 );
 		}
 
 
@@ -55,6 +48,10 @@ if ( ! class_exists( 'um\core\Permalinks' ) ) {
 
 		/**
 		 * SEO canonical href bugfix
+		 *
+		 * @deprecated since version 2.1.7
+		 *
+		 * @see function um_profile_remove_wpseo()
 		 */
 		function um_rel_canonical_() {
 			global $wp_the_query;
@@ -91,14 +88,14 @@ if ( ! class_exists( 'um\core\Permalinks' ) ) {
 			if ( !$id = $wp_the_query->get_queried_object_id() )
 				return;
 
-			if( UM()->config()->permalinks['user'] == $id ) {
-				$link = $this->get_current_url();
+			if ( UM()->config()->permalinks['user'] == $id ) {
+				$link = esc_url( $this->get_current_url() );
 				echo "<link rel='canonical' href='$link' />\n";
 				return;
 			}
 
 			$link = get_permalink( $id );
-			if ( $page = get_query_var('cpage') ){
+			if ( $page = get_query_var( 'cpage' ) ){
 				$link = get_comments_pagenum_link( $page );
 				echo "<link rel='canonical' href='$link' />\n";
 			}
@@ -178,27 +175,34 @@ if ( ! class_exists( 'um\core\Permalinks' ) ) {
 		/**
 		 * Activates an account via email
 		 */
-		function activate_account_via_email_link() {
-			if ( isset( $_REQUEST['act'] ) && $_REQUEST['act'] == 'activate_via_email' && isset( $_REQUEST['hash'] ) && is_string( $_REQUEST['hash'] ) && strlen( $_REQUEST['hash'] ) == 40 &&
+		public function activate_account_via_email_link() {
+			if ( isset( $_REQUEST['act'] ) && 'activate_via_email' === sanitize_key( $_REQUEST['act'] ) && isset( $_REQUEST['hash'] ) && is_string( $_REQUEST['hash'] ) && strlen( $_REQUEST['hash'] ) == 40 &&
 			     isset( $_REQUEST['user_id'] ) && is_numeric( $_REQUEST['user_id'] ) ) { // valid token
 
 				$user_id = absint( $_REQUEST['user_id'] );
 				delete_option( "um_cache_userdata_{$user_id}" );
 
-				um_fetch_user( $user_id );
-
-				if ( strtolower( $_REQUEST['hash'] ) !== strtolower( um_user( 'account_secret_hash' ) ) ) {
+				$account_secret_hash = get_user_meta( $user_id, 'account_secret_hash', true );
+				if ( empty( $account_secret_hash ) || strtolower( sanitize_text_field( $_REQUEST['hash'] ) ) !== strtolower( $account_secret_hash ) ) {
 					wp_die( __( 'This activation link is expired or have already been used.', 'ultimate-member' ) );
 				}
 
+				$account_secret_hash_expiry = get_user_meta( $user_id, 'account_secret_hash_expiry', true );
+				if ( ! empty( $account_secret_hash_expiry ) && time() > $account_secret_hash_expiry ) {
+					wp_die( __( 'This activation link is expired.', 'ultimate-member' ) );
+				}
+
+				um_fetch_user( $user_id );
 				UM()->user()->approve();
-				$redirect = ( um_user( 'url_email_activate' ) ) ? um_user( 'url_email_activate' ) : um_get_core_page( 'login', 'account_active' );
-				$login    = (bool) um_user( 'login_email_activate' );
+				um_reset_user();
+
+				$user_role = UM()->roles()->get_priority_user_role( $user_id );
+				$user_role_data = UM()->roles()->role_data( $user_role );
 
 				// log in automatically
+				$login = ! empty( $user_role_data['login_email_activate'] ); // Role setting "Login user after validating the activation link?"
 				if ( ! is_user_logged_in() && $login ) {
 					$user = get_userdata( $user_id );
-					$user_id = $user->ID;
 
 					// update wp user
 					wp_set_current_user( $user_id, $user->user_login );
@@ -209,7 +213,6 @@ if ( ! class_exists( 'um\core\Permalinks' ) ) {
 					ob_end_clean();
 				}
 
-				um_reset_user();
 				/**
 				 * UM hook
 				 *
@@ -231,6 +234,9 @@ if ( ! class_exists( 'um\core\Permalinks' ) ) {
 				 */
 				do_action( 'um_after_email_confirmation', $user_id );
 
+				$redirect = empty( $user_role_data['url_email_activate'] ) ? um_get_core_page( 'login', 'account_active' ) : trim( $user_role_data['url_email_activate'] ); // Role setting "URL redirect after e-mail activation"
+				$redirect = apply_filters( 'um_after_email_confirmation_redirect', $redirect, $user_id, $login );
+
 				exit( wp_redirect( $redirect ) );
 
 			}
@@ -241,10 +247,10 @@ if ( ! class_exists( 'um\core\Permalinks' ) ) {
 		/**
 		 * Makes an activate link for any user
 		 *
-		 * @return bool|mixed|string|void
+		 * @return bool|string
 		 */
 		function activate_url() {
-			if ( !um_user('account_secret_hash') ) {
+			if ( ! um_user( 'account_secret_hash' ) ) {
 				return false;
 			}
 
@@ -271,8 +277,8 @@ if ( ! class_exists( 'um\core\Permalinks' ) ) {
 			 */
 			$url =  apply_filters( 'um_activate_url', home_url() );
 			$url =  add_query_arg( 'act', 'activate_via_email', $url );
-			$url =  add_query_arg( 'hash', um_user('account_secret_hash'), $url );
-			$url =  add_query_arg( 'user_id', um_user('ID'), $url );
+			$url =  add_query_arg( 'hash', um_user( 'account_secret_hash' ), $url );
+			$url =  add_query_arg( 'user_id', um_user( 'ID' ), $url );
 
 			return $url;
 		}
@@ -297,7 +303,7 @@ if ( ! class_exists( 'um\core\Permalinks' ) ) {
 		 * @return string
 		 */
 		function add_query( $key, $value ) {
-			$this->current_url =  add_query_arg( $key, $value, $this->get_current_url() );
+			$this->current_url = add_query_arg( $key, $value, $this->get_current_url() );
 			return $this->current_url;
 		}
 
@@ -378,7 +384,7 @@ if ( ! class_exists( 'um\core\Permalinks' ) ) {
 			 */
 			$profile_url = apply_filters( 'um_localize_permalink_filter', $profile_url, $page_id );
 
-			if ( get_option('permalink_structure') ) {
+			if ( get_option( 'permalink_structure' ) ) {
 
 				$profile_url = trailingslashit( untrailingslashit( $profile_url ) );
 				$profile_url = $profile_url . strtolower( $slug ). '/';

@@ -403,6 +403,7 @@ class TablePress_Table_Model extends TablePress_Model {
 	 *
 	 * This is similar to the `sanitize()` method, but executed for all users.
 	 * In 1.10.0, adding `rel="noopener noreferrer"` to all HTML link elements like `<a target=` was added. See https://core.trac.wordpress.org/ticket/43187.
+	 * Since 1.13.0, and on WP 5.6, only `rel="noopener"` is added. See https://core.trac.wordpress.org/ticket/49558.
 	 *
 	 * @since 1.10.0
 	 *
@@ -418,7 +419,7 @@ class TablePress_Table_Model extends TablePress_Model {
 		 * @param bool $filter Whether to filter the content of table cells and other fields. Default true.
 		 */
 		if ( ! apply_filters( 'tablepress_filter_table_cell_content', true ) ) {
-			return;
+			return $table;
 		}
 
 		// Filter the table name and description.
@@ -681,7 +682,7 @@ class TablePress_Table_Model extends TablePress_Model {
 	 * @since 1.0.0
 	 *
 	 * @param bool $single_value Optional. Whether to return just the number of tables from the list, or also count in the database.
-	 * @return bool int|array Number of Tables (if $single_value), or array of Numbers from list/DB (if ! $single_value).
+	 * @return int|array Number of Tables (if $single_value), or array of Numbers from list/DB (if ! $single_value).
 	 */
 	public function count_tables( $single_value = true ) {
 		$count_list = count( $this->tables->get( 'table_post' ) );
@@ -759,7 +760,7 @@ class TablePress_Table_Model extends TablePress_Model {
 	 * @since 1.0.0
 	 *
 	 * @param string $table_id Table ID.
-	 * @return int|bool Post ID on success, false on error.
+	 * @return int|false Post ID on success, false on error.
 	 */
 	protected function _get_post_id( $table_id ) {
 		$table_post = $this->tables->get( 'table_post' );
@@ -871,8 +872,8 @@ class TablePress_Table_Model extends TablePress_Model {
 			'name'          => '',
 			'description'   => '',
 			'data'          => array( array( '' ) ), // one empty cell
-			// 'created' => current_time( 'mysql' ),
-			'last_modified' => current_time( 'mysql' ),
+			// 'created' => wp_date( 'Y-m-d H:i:s' ),
+			'last_modified' => wp_date( 'Y-m-d H:i:s' ),
 			'author'        => get_current_user_id(),
 			'options'       => array(
 				'last_editor'                 => get_current_user_id(),
@@ -921,10 +922,9 @@ class TablePress_Table_Model extends TablePress_Model {
 	 * @param array $table                     Table to merge into.
 	 * @param array $new_table                 Table to merge.
 	 * @param bool  $table_size_check          Optional. Whether to check the number of rows and columns (e.g. not necessary for added or copied tables).
-	 * @param bool  $extended_visibility_check Optional. Whether to check the counts of hidden rows and columns (only possible for Admin_AJAX controller as of now).
 	 * @return array|WP_Error Merged table on success, WP_Error on error.
 	 */
-	public function prepare_table( array $table, array $new_table, $table_size_check = true, $extended_visibility_check = false ) {
+	public function prepare_table( array $table, array $new_table, $table_size_check = true ) {
 		// Table ID must be the same (if there was an ID already).
 		if ( false !== $table['id'] ) {
 			if ( $table['id'] !== $new_table['id'] ) {
@@ -957,8 +957,8 @@ class TablePress_Table_Model extends TablePress_Model {
 				return new WP_Error( 'table_prepare_size_check_numbers_not_set' );
 			}
 			// Table data needs to be ok, and have the correct number of rows and columns.
-			$new_table['number']['rows'] = intval( $new_table['number']['rows'] );
-			$new_table['number']['columns'] = intval( $new_table['number']['columns'] );
+			$new_table['number']['rows'] = (int) $new_table['number']['rows'];
+			$new_table['number']['columns'] = (int) $new_table['number']['columns'];
 			if ( 0 === $new_table['number']['rows']
 			|| 0 === $new_table['number']['columns']
 			|| count( $new_table['data'] ) !== $new_table['number']['rows']
@@ -970,31 +970,6 @@ class TablePress_Table_Model extends TablePress_Model {
 			|| count( $new_table['visibility']['columns'] ) !== $new_table['number']['columns'] ) {
 				return new WP_Error( 'table_prepare_size_check_visibility_doesnt_match' );
 			}
-
-			if ( $extended_visibility_check ) { // only for Admin_AJAX controller
-				if ( ! isset( $new_table['number']['hidden_rows'] )
-				|| ! isset( $new_table['number']['hidden_columns'] ) ) {
-					return new WP_Error( 'table_prepare_extended_visibility_check_numbers_not_set' );
-				}
-				$new_table['number']['hidden_rows'] = intval( $new_table['number']['hidden_rows'] );
-				$new_table['number']['hidden_columns'] = intval( $new_table['number']['hidden_columns'] );
-				// Count hidden and visible rows.
-				$num_visible_rows = count( array_keys( $new_table['visibility']['rows'], 1 ) );
-				$num_hidden_rows = count( array_keys( $new_table['visibility']['rows'], 0 ) );
-				// Check number of hidden and visible rows.
-				if ( $new_table['number']['hidden_rows'] !== $num_hidden_rows
-				|| ( $new_table['number']['rows'] - $new_table['number']['hidden_rows'] ) !== $num_visible_rows ) {
-					return new WP_Error( 'table_prepare_extended_visibility_check_rows_dont_match' );
-				}
-				// Count hidden and visible columns.
-				$num_visible_columns = count( array_keys( $new_table['visibility']['columns'], 1 ) );
-				$num_hidden_columns = count( array_keys( $new_table['visibility']['columns'], 0 ) );
-				// Check number of hidden and visible columns.
-				if ( $new_table['number']['hidden_columns'] !== $num_hidden_columns
-				|| ( $new_table['number']['columns'] - $new_table['number']['hidden_columns'] ) !== $num_visible_columns ) {
-					return new WP_Error( 'table_prepare_extended_visibility_check_columns_dont_match' );
-				}
-			}
 		}
 
 		// All checks were successful, replace original values with new ones.
@@ -1005,8 +980,8 @@ class TablePress_Table_Model extends TablePress_Model {
 		$table['description'] = $new_table['description'];
 		$table['data'] = $new_table['data'];
 		// $table['author'] = get_current_user_id(); // We don't want this, as it would override the original author.
-		// $table['created'] = current_time( 'mysql' ); // We don't want this, as it would override the original datetime.
-		$table['last_modified'] = current_time( 'mysql' );
+		// $table['created'] = wp_date( 'Y-m-d H:i:s' ); // We don't want this, as it would override the original datetime.
+		$table['last_modified'] = wp_date( 'Y-m-d H:i:s' );
 		$table['options']['last_editor'] = get_current_user_id();
 		// Table Options.
 		if ( isset( $new_table['options'] ) ) { // is for example not set for newly added tables
@@ -1018,7 +993,7 @@ class TablePress_Table_Model extends TablePress_Model {
 				$new_table['options']['extra_css_classes'] = trim( implode( ' ', $new_table['options']['extra_css_classes'] ) );
 			}
 			if ( isset( $new_table['options']['datatables_paginate_entries'] ) ) {
-				$new_table['options']['datatables_paginate_entries'] = intval( $new_table['options']['datatables_paginate_entries'] );
+				$new_table['options']['datatables_paginate_entries'] = (int) $new_table['options']['datatables_paginate_entries'];
 				if ( $new_table['options']['datatables_paginate_entries'] < 1 ) {
 					$new_table['options']['datatables_paginate_entries'] = 10; // default value
 				}
@@ -1227,11 +1202,11 @@ class TablePress_Table_Model extends TablePress_Model {
 	 * @since 1.5.0
 	 *
 	 * @param int   $post_id          Post ID of the imported post.
-	 * @param int   $original_post_ID Original post ID that the post had on the site where it was exported from.
+	 * @param int   $original_post_id Original post ID that the post had on the site where it was exported from.
 	 * @param array $postdata         Post data that was imported into the database.
 	 * @param array $post             Original post data as it was exported.
 	 */
-	public function add_table_id_on_wp_import( $post_id, $original_post_ID, array $postdata, array $post ) {
+	public function add_table_id_on_wp_import( $post_id, $original_post_id, array $postdata, array $post ) {
 		// Bail if the post could not be imported or if the post is not a TablePress table.
 		if ( is_wp_error( $post_id ) || $this->model_post->get_post_type() !== $postdata['post_type'] ) {
 			return;

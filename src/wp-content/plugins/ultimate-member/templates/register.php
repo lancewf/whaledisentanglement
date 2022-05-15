@@ -1,4 +1,8 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
+<?php if ( ! defined( 'ABSPATH' ) ) exit;
+
+if ( ! is_user_logged_in() ) {
+	um_reset_user();
+} ?>
 
 <div class="um <?php echo esc_attr( $this->get_class( $mode ) ); ?> um-<?php echo esc_attr( $form_id ); ?>">
 
@@ -131,7 +135,7 @@
 			 * }
 			 * ?>
 			 */
-			do_action( "um_after_form", $args ); ?>
+			do_action( 'um_after_form', $args ); ?>
 		
 		</form>
 

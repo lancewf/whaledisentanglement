@@ -13,6 +13,7 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 	 */
 	class Shortcodes {
 
+		var $profile_role = '';
 
 		/**
 		 * Shortcodes constructor.
@@ -160,18 +161,16 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 		 */
 		function parse_shortcode_args( $args ) {
 			if ( $this->message_mode == true ) {
-
 				if ( ! empty( $_REQUEST['um_role'] ) ) {
 					$args['template'] = 'message';
-					$roleID = esc_attr( $_REQUEST['um_role'] );
+					$roleID = sanitize_key( $_REQUEST['um_role'] );
 					$role = UM()->roles()->role_data( $roleID );
 
-					if ( ! empty( $role ) && ! empty( $role["status"] ) ) {
-						$message_key = $role["status"] . '_message';
+					if ( ! empty( $role ) && ! empty( $role['status'] ) ) {
+						$message_key = $role['status'] . '_message';
 						$this->custom_message = ! empty( $role[ $message_key ] ) ? stripslashes( $role[ $message_key ] ) : '';
 					}
 				}
-
 			}
 
 			foreach ( $args as $k => $v ) {
@@ -373,7 +372,11 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 					UM()->get_template( 'login-to-view.php', '', $args, true );
 				}
 			} else {
-				echo do_shortcode( $this->convert_locker_tags( wpautop( $content ) ) );
+				if ( version_compare( get_bloginfo('version'),'5.4', '<' ) ) {
+					echo do_shortcode( $this->convert_locker_tags( wpautop( $content ) ) );
+				} else {
+					echo apply_shortcodes( $this->convert_locker_tags( wpautop( $content ) ) );
+				}
 			}
 
 			$output = ob_get_clean();
@@ -397,7 +400,11 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 			if ( is_user_logged_in() ) {
 				echo '';
 			} else {
-				echo do_shortcode( wpautop( $content ) );
+				if ( version_compare( get_bloginfo('version'),'5.4', '<' ) ) {
+					echo do_shortcode( wpautop( $content ) );
+				} else {
+					echo apply_shortcodes( wpautop( $content ) );
+				}
 			}
 
 			$output = ob_get_clean();
@@ -430,7 +437,11 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 				$shortcode_attrs .= " {$key}=\"{$value}\"";
 			}
 
-			return do_shortcode( "[ultimatemember {$shortcode_attrs} /]" );
+			if ( version_compare( get_bloginfo('version'),'5.4', '<' ) ) {
+				return do_shortcode( "[ultimatemember {$shortcode_attrs} /]" );
+			} else {
+				return apply_shortcodes( "[ultimatemember {$shortcode_attrs} /]" );
+			}
 		}
 
 
@@ -459,7 +470,11 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 				$shortcode_attrs .= " {$key}=\"{$value}\"";
 			}
 
-			return do_shortcode( "[ultimatemember {$shortcode_attrs} /]" );
+			if ( version_compare( get_bloginfo('version'),'5.4', '<' ) ) {
+				return do_shortcode( "[ultimatemember {$shortcode_attrs} /]" );
+			} else {
+				return apply_shortcodes( "[ultimatemember {$shortcode_attrs} /]" );
+			}
 		}
 
 
@@ -489,7 +504,11 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 				$shortcode_attrs .= " {$key}=\"{$value}\"";
 			}
 
-			return do_shortcode( "[ultimatemember {$shortcode_attrs} /]" );
+			if ( version_compare( get_bloginfo('version'),'5.4', '<' ) ) {
+				return do_shortcode( "[ultimatemember {$shortcode_attrs} /]" );
+			} else {
+				return apply_shortcodes( "[ultimatemember {$shortcode_attrs} /]" );
+			}
 		}
 
 
@@ -519,7 +538,11 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 				$shortcode_attrs .= " {$key}=\"{$value}\"";
 			}
 
-			return do_shortcode( "[ultimatemember {$shortcode_attrs} /]" );
+			if ( version_compare( get_bloginfo('version'),'5.4', '<' ) ) {
+				return do_shortcode( "[ultimatemember {$shortcode_attrs} /]" );
+			} else {
+				return apply_shortcodes( "[ultimatemember {$shortcode_attrs} /]" );
+			}
 		}
 
 
@@ -651,8 +674,11 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 			extract( $args, EXTR_SKIP );
 
 			//not display on admin preview
-			if ( empty( $_POST['act_id'] ) || $_POST['act_id'] != 'um_admin_preview_form' ) {
-				if ( 'register' == $mode && is_user_logged_in() ) {
+			if ( empty( $_POST['act_id'] ) || sanitize_key( $_POST['act_id'] ) !== 'um_admin_preview_form' ) {
+
+				$enable_loggedin_registration = apply_filters( 'um_registration_for_loggedin_users', false, $args );
+
+				if ( 'register' == $mode && is_user_logged_in() && ! $enable_loggedin_registration ) {
 					ob_get_clean();
 					return __( 'You are already registered', 'ultimate-member' );
 				}
@@ -666,21 +692,32 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 					um_set_requested_user( um_profile_id() );
 				}
 
-				if ( ! empty( $args['use_custom_settings'] ) ) { // Custom Form settings
-					$current_user_roles = UM()->roles()->get_all_user_roles( um_profile_id() );
+				if ( ! empty( $args['use_custom_settings'] ) ) { // Option "Apply custom settings to this form"
+					if ( ! empty( $args['role'] ) ) { // Option "Make this profile form role-specific"
 
-					//backward compatibility between single/multi role form's setting
-					if ( ! empty( $args['role'] ) ) {
-						if ( is_array( $args['role'] ) ) {
-							if ( ! count( array_intersect( $args['role'], $current_user_roles ) ) ) {
+						// show the first Profile Form with role selected, don't show profile forms below the page with other role-specific setting
+						if ( empty( $this->profile_role ) ) {
+							$current_user_roles = UM()->roles()->get_all_user_roles( um_profile_id() );
+
+							if ( empty( $current_user_roles ) ) {
 								ob_get_clean();
 								return '';
+							} elseif ( is_array( $args['role'] ) ) {
+								if ( ! count( array_intersect( $args['role'], $current_user_roles ) ) ) {
+									ob_get_clean();
+									return '';
+								}
+							} else {
+								if ( ! in_array( $args['role'], $current_user_roles ) ) {
+									ob_get_clean();
+									return '';
+								}
 							}
-						} else {
-							if ( ! in_array( $args['role'], $current_user_roles ) ) {
-								ob_get_clean();
-								return '';
-							}
+
+							$this->profile_role = $args['role'];
+						} elseif ( $this->profile_role != $args['role'] ) {
+							ob_get_clean();
+							return '';
 						}
 					}
 				}
@@ -884,9 +921,9 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 		 *
 		 * @return mixed|string
 		 */
-		function get_template_name($file) {
-			$file = basename($file);
-			$file = preg_replace('/\\.[^.\\s]{3,4}$/', '', $file);
+		function get_template_name( $file ) {
+			$file = basename( $file );
+			$file = preg_replace( '/\\.[^.\\s]{3,4}$/', '', $file );
 			return $file;
 		}
 
@@ -898,32 +935,32 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 		 *
 		 * @return mixed
 		 */
-		function get_templates($excluded = null) {
+		function get_templates( $excluded = null ) {
 
-			if ($excluded) {
-				$array[$excluded] = __('Default Template', 'ultimate-member');
+			if ( $excluded ) {
+				$array[ $excluded ] = __( 'Default Template', 'ultimate-member' );
 			}
 
-			$paths[] = glob(um_path . 'templates/' . '*.php');
+			$paths[] = glob( um_path . 'templates/' . '*.php' );
 
-			if (file_exists(get_stylesheet_directory() . '/ultimate-member/templates/')) {
-				$paths[] = glob(get_stylesheet_directory() . '/ultimate-member/templates/' . '*.php');
+			if ( file_exists( get_stylesheet_directory() . '/ultimate-member/templates/' ) ) {
+				$paths[] = glob( get_stylesheet_directory() . '/ultimate-member/templates/' . '*.php' );
 			}
 
-			if( isset( $paths ) && ! empty( $paths ) ){
+			if ( isset( $paths ) && ! empty( $paths ) ) {
 
-				foreach ($paths as $k => $files) {
+				foreach ( $paths as $k => $files ) {
 
-					if( isset( $files ) && ! empty( $files ) ){
+					if ( isset( $files ) && ! empty( $files ) ) {
 
-						foreach ($files as $file) {
+						foreach ( $files as $file ) {
 
 							$clean_filename = $this->get_template_name( $file );
 
 							if ( 0 === strpos( $clean_filename, $excluded ) ) {
 
 								$source = file_get_contents( $file );
-								$tokens = token_get_all( $source );
+								$tokens = @\token_get_all( $source );
 								$comment = array(
 									T_COMMENT, // All comments since PHP5
 									T_DOC_COMMENT, // PHPDoc comments
@@ -931,8 +968,8 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 								foreach ( $tokens as $token ) {
 									if ( in_array( $token[0], $comment ) && strstr( $token[1], '/* Template:' ) && $clean_filename != $excluded ) {
 										$txt = $token[1];
-										$txt = str_replace('/* Template: ', '', $txt );
-										$txt = str_replace(' */', '', $txt );
+										$txt = str_replace( '/* Template: ', '', $txt );
+										$txt = str_replace( ' */', '', $txt );
 										$array[ $clean_filename ] = $txt;
 									}
 								}
@@ -948,7 +985,6 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 			}
 
 			return $array;
-
 		}
 
 
@@ -1144,20 +1180,32 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 			$current_user_roles = um_user( 'roles' );
 
 			if ( ! empty( $a['not'] ) && ! empty( $a['roles'] ) ) {
-				return do_shortcode( $this->convert_locker_tags( $content ) );
+				if ( version_compare( get_bloginfo('version'),'5.4', '<' ) ) {
+					return do_shortcode( $this->convert_locker_tags( $content ) );
+				} else {
+					return apply_shortcodes( $this->convert_locker_tags( $content ) );
+				}
 			}
 
 			if ( ! empty( $a['not'] ) ) {
 				$not_in_roles = explode( ",", $a['not'] );
 
 				if ( is_array( $not_in_roles ) && ( empty( $current_user_roles ) || count( array_intersect( $current_user_roles, $not_in_roles ) ) <= 0 ) ) {
-					return do_shortcode( $this->convert_locker_tags( $content ) );
+					if ( version_compare( get_bloginfo('version'),'5.4', '<' ) ) {
+						return do_shortcode( $this->convert_locker_tags( $content ) );
+					} else {
+						return apply_shortcodes( $this->convert_locker_tags( $content ) );
+					}
 				}
 			} else {
 				$roles = explode( ",", $a['roles'] );
 
 				if ( ! empty( $current_user_roles ) && is_array( $roles ) && count( array_intersect( $current_user_roles, $roles ) ) > 0 ) {
-					return do_shortcode( $this->convert_locker_tags( $content ) );
+					if ( version_compare( get_bloginfo('version'),'5.4', '<' ) ) {
+						return do_shortcode( $this->convert_locker_tags( $content ) );
+					} else {
+						return apply_shortcodes( $this->convert_locker_tags( $content ) );
+					}
 				}
 			}
 
@@ -1216,7 +1264,7 @@ if ( ! class_exists( 'um\core\Shortcodes' ) ) {
 
 				$hash = UM()->member_directory()->get_directory_hash( $directory_id );
 
-				$query[ 'search_' . $hash ] = ! empty( $_GET[ 'search_' . $hash ] ) ? $_GET[ 'search_' . $hash ] : '';
+				$query[ 'search_' . $hash ] = ! empty( $_GET[ 'search_' . $hash ] ) ? sanitize_text_field( $_GET[ 'search_' . $hash ] ) : '';
 			}
 
 			if ( empty( $query ) ) {

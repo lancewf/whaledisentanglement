@@ -542,6 +542,71 @@ if ( ! class_exists( 'um\admin\core\Admin_Forms' ) ) {
 
 			$html .= '</span></span>';
 
+			UM()->metabox()->init_icon = true;
+
+			return $html;
+		}
+
+
+		/**
+		 * @param $field_data
+		 *
+		 * @return bool|string
+		 */
+		function render_users_dropdown( $field_data ) {
+			if ( empty( $field_data['id'] ) ) {
+				return false;
+			}
+
+			$multiple = ! empty( $field_data['multi'] ) ? 'multiple' : '';
+
+			$id = ( ! empty( $this->form_data['prefix_id'] ) ? $this->form_data['prefix_id'] : '' ) . '_' . $field_data['id'];
+			$id_attr = ' id="' . esc_attr( $id ) . '" ';
+
+			$class = ! empty( $field_data['class'] ) ? $field_data['class'] . ' ' : ' ';
+			$class .= ! empty( $field_data['size'] ) ? 'um-' . $field_data['size'] . '-field' : 'um-long-field';
+			$class_attr = ' class="um-forms-field um-user-select-field' . esc_attr( $class ) . '" ';
+
+			$data = array(
+				'field_id' => $field_data['id'],
+			);
+
+			$data_attr = '';
+			foreach ( $data as $key => $value ) {
+				$data_attr .= ' data-' . $key . '="' . esc_attr( $value ) . '" ';
+			}
+
+			$name = $field_data['id'];
+			$name = ! empty( $this->form_data['prefix_id'] ) ? $this->form_data['prefix_id'] . '[' . $name . ']' : $name;
+			$hidden_name_attr = ' name="' . $name . '" ';
+			$name = $name . ( ! empty( $field_data['multi'] ) ? '[]' : '' );
+			$name_attr = ' name="' . $name . '" ';
+
+			$value = $this->get_field_value( $field_data );
+
+			$users = array();
+			if ( ! empty( $value ) ) {
+				$users = get_users(
+					array(
+						'include' => $value,
+						'fields'  => array( 'ID', 'user_login' ),
+					)
+				);
+			}
+
+			$options = '';
+			if ( ! empty( $users ) ) {
+				foreach ( $users as $user ) {
+					$options .= '<option value="' . esc_attr( $user->ID ) . '" selected>' . esc_html( $user->user_login . ' (#' . $user->ID . ')' ) . '</option>';
+				}
+			}
+
+			$hidden = '';
+			if ( ! empty( $multiple ) ) {
+				$hidden = "<input type=\"hidden\" $hidden_name_attr value=\"\" />";
+			}
+			$html = "$hidden<select $multiple $id_attr $name_attr $class_attr $data_attr data-placeholder=\"" . esc_attr__( 'Select Users', 'ultimate-member' ) . "\" placeholder=\"" . esc_attr__( 'Select Users', 'ultimate-member' ) . "\"><option>" . esc_html__( 'Select Users', 'ultimate-member' ) . "</option>$options</select>";
+
 			return $html;
 		}
 
@@ -914,7 +979,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Forms' ) ) {
 			$id = ( ! empty( $this->form_data['prefix_id'] ) ? $this->form_data['prefix_id'] : '' ) . '_' . $field_data['id'];
 			$id_attr = ' id="' . esc_attr( $id ) . '" ';
 
-			$class = ! empty( $field_data['class'] ) ? $field_data['class'] : '';
+			$class = ! empty( $field_data['class'] ) ? $field_data['class'] . ' ' : ' ';
 			$class .= ! empty( $field_data['size'] ) ? 'um-' . $field_data['size'] . '-field' : 'um-long-field';
 			$class_attr = ' class="um-forms-field ' . esc_attr( $class ) . '" ';
 
@@ -1092,7 +1157,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Forms' ) ) {
 			$columns = ( ! empty( $field_data['columns'] ) && is_numeric( $field_data['columns'] ) ) ? $field_data['columns'] : 1;
 			while ( $i < $columns ) {
 				$per_page = ceil( count( $field_data['options'] ) / $columns );
-				$section_fields_per_page = array_slice( $field_data['options'], $i*$per_page, $per_page );
+				$section_fields_per_page = array_slice( $field_data['options'], $i*$per_page, $per_page, true );
 				$html .= '<span class="um-form-fields-section" style="width:' . floor( 100 / $columns ) . '% !important;">';
 
 				foreach ( $section_fields_per_page as $k => $title ) {
@@ -1149,8 +1214,9 @@ if ( ! class_exists( 'um\admin\core\Admin_Forms' ) ) {
 			$class_attr = ' class="um-forms-field ' . esc_attr( $class ) . '" ';
 
 			$data = array(
-				'field_id' => $field_data['id'],
-				'id_attr' => $id
+				'field_id'   => $field_data['id'],
+				'id_attr'    => $id,
+				'item_class' => "um-multi-text-option-line {$size}",
 			);
 
 			$data_attr = '';
@@ -1362,6 +1428,11 @@ if ( ! class_exists( 'um\admin\core\Admin_Forms' ) ) {
 		}
 
 
+		/**
+		 * @param $field_data
+		 *
+		 * @return string
+		 */
 		function render_md_default_filters( $field_data ) {
 			if ( empty( $field_data['id'] ) ) {
 				return false;
@@ -1445,6 +1516,11 @@ if ( ! class_exists( 'um\admin\core\Admin_Forms' ) ) {
 		}
 
 
+		/**
+		 * @param $field_data
+		 *
+		 * @return string
+		 */
 		function render_md_sorting_fields( $field_data ) {
 			if ( empty( $field_data['id'] ) ) {
 				return false;
@@ -1560,6 +1636,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Forms' ) ) {
 			return $html;
 		}
 
+
 		/**
 		 * Get field value
 		 *
@@ -1568,8 +1645,17 @@ if ( ! class_exists( 'um\admin\core\Admin_Forms' ) ) {
 		 * @return string|array
 		 */
 		function get_field_value( $field_data, $i = '' ) {
-			$default = ( $field_data['type'] == 'multi_checkbox' ) ? array() : '';
-			$default = isset( $field_data[ 'default' . $i ] ) ? $field_data[ 'default' . $i ] : $default;
+
+			$default = '';
+			if ( $field_data['type'] === 'multi_checkbox' ) {
+				$default = array();
+				if ( isset( $field_data['default'] ) ) {
+					$default = is_array( $field_data['default'] ) ? $field_data['default'] : array( $field_data['default'] );
+				}
+			}
+			if ( isset( $field_data[ 'default' . $i ] ) ) {
+				$default = $field_data[ 'default' . $i ];
+			}
 
 			if ( $field_data['type'] == 'checkbox' || $field_data['type'] == 'multi_checkbox' ) {
 				$value = ( isset( $field_data[ 'value' . $i ] ) && '' !== $field_data[ 'value' . $i ] ) ? $field_data[ 'value' . $i ] : $default;

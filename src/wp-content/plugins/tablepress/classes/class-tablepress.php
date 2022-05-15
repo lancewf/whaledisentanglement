@@ -26,7 +26,7 @@ abstract class TablePress {
 	 * @since 1.0.0
 	 * @const string
 	 */
-	const version = '1.11';
+	const version = '1.14'; // phpcs:ignore Generic.NamingConventions.UpperCaseConstantName.ClassConstantNotUpperCase
 
 	/**
 	 * TablePress internal plugin version ("options scheme" version).
@@ -36,7 +36,7 @@ abstract class TablePress {
 	 * @since 1.0.0
 	 * @const int
 	 */
-	const db_version = 40;
+	const db_version = 43; // phpcs:ignore Generic.NamingConventions.UpperCaseConstantName.ClassConstantNotUpperCase
 
 	/**
 	 * TablePress "table scheme" (data format structure) version.
@@ -47,7 +47,7 @@ abstract class TablePress {
 	 * @since 1.0.0
 	 * @const int
 	 */
-	const table_scheme_version = 3;
+	const table_scheme_version = 3; // phpcs:ignore Generic.NamingConventions.UpperCaseConstantName.ClassConstantNotUpperCase
 
 	/**
 	 * Instance of the Options Model.
@@ -113,9 +113,9 @@ abstract class TablePress {
 			return;
 		}
 
-		// Check if minimum requirements are fulfilled, currently WordPress 5.3.
+		// Check if minimum requirements are fulfilled, currently WordPress 5.6.
 		include( ABSPATH . WPINC . '/version.php' ); // Include an unmodified $wp_version.
-		if ( version_compare( str_replace( '-src', '', $wp_version ), '5.3', '<' ) ) {
+		if ( version_compare( str_replace( '-src', '', $wp_version ), '5.6', '<' ) ) {
 			// Show error notice to admins, if WP is not installed in the minimum required version, in which case TablePress will not work.
 			if ( current_user_can( 'update_plugins' ) ) {
 				add_action( 'admin_notices', array( 'TablePress', 'show_minimum_requirements_error_notice' ) );
@@ -147,7 +147,7 @@ abstract class TablePress {
 
 		if ( is_admin() ) {
 			$controller = 'admin';
-			if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
+			if ( wp_doing_ajax() ) {
 				$controller .= '_ajax';
 			}
 		} else {
@@ -342,18 +342,28 @@ abstract class TablePress {
 	 *
 	 * @since 1.0.0
 	 *
-	 * @param string $datetime  DateTime string in mySQL format or a Unix timestamp.
-	 * @param string $type      Optional. Type of $datetime, 'mysql' or 'timestamp'.
-	 * @param string $separator Optional. Separator between date and time.
+	 * @param string $datetime_string     DateTime string, often in mySQL format..
+	 * @param string $separator_or_format Optional. Separator between date and time, or format string.
 	 * @return string Nice looking string with the date and time.
 	 */
-	public static function format_datetime( $datetime, $type = 'mysql', $separator = ' ' ) {
-		// @TODO: Maybe change from using the stored WP Options to translated date/time schemes, like in https://core.trac.wordpress.org/changeset/35811.
-		if ( 'mysql' === $type ) {
-			return mysql2date( get_option( 'date_format' ), $datetime ) . $separator . mysql2date( get_option( 'time_format' ), $datetime );
-		} else {
-			return date_i18n( get_option( 'date_format' ), $datetime ) . $separator . date_i18n( get_option( 'time_format' ), $datetime );
+	public static function format_datetime( $datetime_string, $separator_or_format = ' ' ) {
+		$timezone = wp_timezone();
+		$datetime = date_create( $datetime_string, $timezone );
+		$timestamp = $datetime->getTimestamp();
+
+		switch ( $separator_or_format ) {
+			case ' ':
+			case '<br />':
+				$date = wp_date( get_option( 'date_format' ), $timestamp, $timezone );
+				$time = wp_date( get_option( 'time_format' ), $timestamp, $timezone );
+				$output = "{$date}{$separator_or_format}{$time}";
+				break;
+			default:
+				$output = wp_date( $separator_or_format, $timestamp, $timezone );
+				break;
 		}
+
+		return $output;
 	}
 
 	/**

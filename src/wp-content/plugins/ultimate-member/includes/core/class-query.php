@@ -29,7 +29,7 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 		/**
 		 * Query constructor.
 		 */
-		function __construct() {
+		public function __construct() {
 
 
 		}
@@ -38,7 +38,7 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 		/**
 		 * Ajax pagination for posts
 		 */
-		function ajax_paginate() {
+		public function ajax_paginate() {
 			UM()->check_ajax_nonce();
 
 			/**
@@ -222,7 +222,7 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 		 * @return int
 		 */
 		function count_users_by_status( $status ) {
-			$args = array( 'fields' => 'ID', 'number' => 0 );
+			$args = array( 'fields' => 'ID', 'number' => 0, 'um_custom_user_query' => true );
 			if ( $status == 'unassigned' ) {
 				$args['meta_query'][] = array(array('key' => 'account_status','compare' => 'NOT EXISTS'));
 				$users = new \WP_User_Query( $args );

@@ -9,7 +9,7 @@
 
 /* global prompt, confirm, tablepress_common, tablepress_list, tb_show, ajaxurl */
 
-jQuery( document ).ready( function( $ ) {
+jQuery( function( $ ) {
 
 	'use strict';
 
@@ -92,7 +92,7 @@ jQuery( document ).ready( function( $ ) {
 		}
 
 		// check whether an action was selected, and whether tables were selected
-		if ( '-1' === $( '#bulk-action-' + bulk_action ).val() ) {
+		if ( '-1' === $( '#bulk-action-selector-' + bulk_action ).val() ) {
 			return false;
 		}
 		if ( 0 === num_selected ) {
@@ -100,7 +100,7 @@ jQuery( document ).ready( function( $ ) {
 		}
 
 		// Show AYS prompt for deletion
-		if ( 'delete' === $( '#bulk-action-' + bulk_action ).val() ) {
+		if ( 'delete' === $( '#bulk-action-selector-' + bulk_action ).val() ) {
 			if ( 1 === num_selected ) {
 				confirm_message = tablepress_common.ays_delete_single_table;
 			} else {

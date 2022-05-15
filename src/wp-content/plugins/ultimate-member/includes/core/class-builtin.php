@@ -36,9 +36,9 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 		 * Builtin constructor.
 		 */
 		function __construct() {
-			add_action( 'init',  array(&$this, 'set_core_fields'), 1);
-			add_action( 'init',  array(&$this, 'set_predefined_fields'), 1);
-			add_action( 'init',  array(&$this, 'set_custom_fields'), 1);
+			add_action( 'init', array( &$this, 'set_core_fields' ), 1 );
+			add_action( 'init', array( &$this, 'set_predefined_fields' ), 1 );
+			add_action( 'init', array( &$this, 'set_custom_fields' ), 1 );
 			$this->saved_fields = get_option( 'um_fields' );
 		}
 
@@ -61,13 +61,15 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 		 */
 		function is_dropdown_field( $field, $attrs ) {
 
-			if ( isset( $attrs['options'] ) )
+			if ( isset( $attrs['options'] ) ) {
 				return true;
+			}
 
 			$fields = $this->all_user_fields;
 
-			if ( isset( $fields[$field]['options'] ) || ! empty( $fields[$field]['custom_dropdown_options_source'] ) )
+			if ( isset( $fields[$field]['options'] ) || ! empty( $fields[$field]['custom_dropdown_options_source'] ) ) {
 				return true;
+			}
 
 			return false;
 		}
@@ -134,14 +136,25 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 		 *
 		 * @param $key
 		 *
-		 * @return int|string|void
+		 * @return int|string
 		 */
 		function unique_field_err( $key ) {
-			if ( empty( $key ) ) return __('Please provide a meta key','ultimate-member');
-			if ( isset( $this->core_fields[ $key ] ) ) return __('Your meta key is a reserved core field and cannot be used','ultimate-member');
-			if ( isset( $this->predefined_fields[ $key ] ) ) return __('Your meta key is a predefined reserved key and cannot be used','ultimate-member');
-			if ( isset( $this->saved_fields[ $key ] ) ) return __('Your meta key already exists in your fields list','ultimate-member');
-			if ( ! UM()->validation()->safe_string( $key ) ) return __('Your meta key contains illegal characters. Please correct it.','ultimate-member');
+			if ( empty( $key ) ) {
+				return __( 'Please provide a meta key', 'ultimate-member' );
+			}
+			if ( isset( $this->core_fields[ $key ] ) ) {
+				return __( 'Your meta key is a reserved core field and cannot be used', 'ultimate-member' );
+			}
+			if ( isset( $this->predefined_fields[ $key ] ) ) {
+				return __( 'Your meta key is a predefined reserved key and cannot be used', 'ultimate-member' );
+			}
+			if ( isset( $this->saved_fields[ $key ] ) ) {
+				return __( 'Your meta key already exists in your fields list', 'ultimate-member' );
+			}
+			if ( ! UM()->validation()->safe_string( $key ) ) {
+				return __( 'Your meta key contains illegal characters. Please correct it.', 'ultimate-member' );
+			}
+
 			return 0;
 		}
 
@@ -151,11 +164,16 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 		 *
 		 * @param $date
 		 *
-		 * @return int|string|void
+		 * @return int|string
 		 */
 		function date_range_start_err( $date ) {
-			if ( empty( $date ) ) return __('Please provide a date range beginning','ultimate-member');
-			if ( ! UM()->validation()->validate_date( $date ) ) return __('Please enter a valid start date in the date range','ultimate-member');
+			if ( empty( $date ) ) {
+				return __( 'Please provide a date range beginning', 'ultimate-member' );
+			}
+			if ( ! UM()->validation()->validate_date( $date ) ) {
+				return __( 'Please enter a valid start date in the date range', 'ultimate-member' );
+			}
+
 			return 0;
 		}
 
@@ -166,12 +184,18 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 		 * @param $date
 		 * @param $start_date
 		 *
-		 * @return int|string|void
+		 * @return int|string
 		 */
 		function date_range_end_err( $date, $start_date ) {
-			if ( empty( $date ) ) return __('Please provide a date range end','ultimate-member');
-			if ( ! UM()->validation()->validate_date( $date ) ) return __('Please enter a valid end date in the date range','ultimate-member');
-			if ( strtotime( $date ) <= strtotime( $start_date ) ) return __('The end of date range must be greater than the start of date range','ultimate-member');
+			if ( empty( $date ) ) {
+				return __( 'Please provide a date range end', 'ultimate-member' );
+			}
+			if ( ! UM()->validation()->validate_date( $date ) ) {
+				return __( 'Please enter a valid end date in the date range', 'ultimate-member' );
+			}
+			if ( strtotime( $date ) <= strtotime( $start_date ) ) {
+				return __( 'The end of date range must be greater than the start of date range', 'ultimate-member' );
+			}
 			return 0;
 		}
 
@@ -352,7 +376,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 				'password' => array(
 					'name' => 'Password',
 					'col1' => array('_title','_metakey','_help','_min_chars','_max_chars','_visibility'),
-					'col2' => array('_label','_placeholder','_public','_roles','_force_good_pass','_force_confirm_pass'),
+					'col2' => array('_label','_placeholder','_public','_roles','_force_good_pass','_force_confirm_pass','_label_confirm_pass'),
 					'col3' => array('_required','_editable','_icon'),
 					'validate' => array(
 						'_title' => array(
@@ -510,7 +534,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 				'divider' => array(
 					'name' => 'Divider',
 					'col1' => array('_title','_width','_divider_text','_visibility'),
-					'col2' => array('_style','_color'),
+					'col2' => array('_style','_color','_public','_roles'),
 					'form_only' => true,
 					'validate' => array(
 						'_title' => array(
@@ -631,20 +655,22 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 		 * Predefined Fields
 		 */
 		function set_predefined_fields() {
-
 			global $wp_roles;
-			$role_keys = get_option( 'um_roles' );
-			if ( ! empty( $role_keys ) && is_array( $role_keys ) ) {
-				$role_keys = array_map( function( $item ) {
-					return 'um_' . $item;
-				}, $role_keys );
-			} else {
-				$role_keys = array();
+
+			$um_roles = array();
+			if ( ! empty( $wp_roles->roles ) ) {
+				$role_keys = get_option( 'um_roles', array() );
+				if ( ! empty( $role_keys ) && is_array( $role_keys ) ) {
+					$role_keys = array_map( function( $item ) {
+						return 'um_' . $item;
+					}, $role_keys );
+				} else {
+					$role_keys = array();
+				}
+
+				$exclude_roles = array_diff( array_keys( $wp_roles->roles ), array_merge( $role_keys, array( 'subscriber' ) ) );
+				$um_roles = UM()->roles()->get_roles( false, $exclude_roles );
 			}
-
-			$exclude_roles = array_diff( array_keys( $wp_roles->roles ), array_merge( $role_keys, array( 'subscriber' ) ) );
-
-			$um_roles = UM()->roles()->get_roles( false, $exclude_roles );
 
 			/**
 			 * UM hook
@@ -714,6 +740,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'max_chars' => 30,
 					'force_good_pass' => 1,
 					'force_confirm_pass' => 1,
+					'label_confirm_pass' => __('Confirm Password','ultimate-member')
 				),
 
 				'first_name' => array(
@@ -903,7 +930,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'url_text' => 'LinkedIn',
 					'advanced' => 'social',
 					'color' => '#0976b4',
-					'match' => 'https://linkedin.com/in/',
+					'match' => 'https://linkedin.com/',
 				),
 
 				'googleplus' => array(
@@ -945,7 +972,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 				'skype' => array(
 					'title' => __('Skype ID','ultimate-member'),
 					'metakey' => 'skype',
-					'type' => 'url',
+					'type' => 'text',
 					'label' => __('Skype ID','ultimate-member'),
 					'required' => 0,
 					'public' => 1,
@@ -954,7 +981,64 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'url_rel' => 'nofollow',
 					'icon' => 'um-faicon-skype',
 					'validate' => 'skype',
-					'url_text' => 'Skype',
+					'url_text' => __( 'Join chat', 'ultimate-member' ),
+				),
+
+				'viber' => array(
+					'title' => __('Viber number','ultimate-member'),
+					'metakey' => 'viber',
+					'type' => 'text',
+					'label' => __('Viber number','ultimate-member'),
+					'required' => 0,
+					'public' => 1,
+					'editable' => 1,
+					'url_target' => '_blank',
+					'url_rel' => 'nofollow',
+					'icon' => 'um-icon-ios-telephone',
+					'validate' => 'phone_number',
+				),
+
+				'whatsapp' => array(
+					'title' => __('WhatsApp number','ultimate-member'),
+					'metakey' => 'whatsapp',
+					'type' => 'text',
+					'label' => __('WhatsApp number','ultimate-member'),
+					'required' => 0,
+					'public' => 1,
+					'editable' => 1,
+					'url_target' => '_blank',
+					'url_rel' => 'nofollow',
+					'icon' => 'um-icon-social-whatsapp',
+					'validate' => 'phone_number',
+				),
+
+				'telegram' => array(
+					'title' => __('Telegram','ultimate-member'),
+					'metakey' => 'telegram',
+					'type' => 'url',
+					'label' => __('Telegram','ultimate-member'),
+					'required' => 0,
+					'public' => 1,
+					'editable' => 1,
+					'url_target' => '_blank',
+					'url_rel' => 'nofollow',
+					'icon' => 'um-faicon-paper-plane',
+					'validate' => 'telegram_url',
+					'url_text' => 'Telegram',
+					'match' => 'https://t.me/',
+				),
+
+				'discord' => array(
+					'title' => __('Discord','ultimate-member'),
+					'metakey' => 'discord',
+					'type' => 'text',
+					'label' => __('Discord ID','ultimate-member'),
+					'required' => 0,
+					'public' => 1,
+					'editable' => 1,
+					'url_target' => '_blank',
+					'url_rel' => 'nofollow',
+					'validate' => 'discord',
 				),
 
 				'youtube' => array(
@@ -976,10 +1060,10 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 				),
 
 				'soundcloud' => array(
-					'title' => __('SoundCloud','ultimate-member'),
+					'title' => __( 'SoundCloud', 'ultimate-member' ),
 					'metakey' => 'soundcloud',
 					'type' => 'url',
-					'label' => __('SoundCloud','ultimate-member'),
+					'label' => __( 'SoundCloud', 'ultimate-member' ),
 					'required' => 0,
 					'public' => 1,
 					'editable' => 1,
@@ -1114,23 +1198,42 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 
 				// account page use ( not public )
 
-				'profile_privacy' => array(
-					'title' => __('Profile Privacy','ultimate-member'),
-					'metakey' => 'profile_privacy',
-					'type' => 'select',
-					'label' => __('Profile Privacy','ultimate-member'),
-					'help' => __('Who can see your public profile?','ultimate-member'),
-					'required' => 0,
-					'public' => 1,
-					'editable' => 1,
-					'default' => 'Everyone',
-					'options' => $profile_privacy,
-					'allowclear' => 0,
-					'account_only' => true,
+				'profile_privacy'       => array(
+					'title'         => __( 'Profile Privacy', 'ultimate-member' ),
+					'metakey'       => 'profile_privacy',
+					'type'          => 'select',
+					'label'         => __( 'Profile Privacy', 'ultimate-member' ),
+					'help'          => __( 'Who can see your public profile?', 'ultimate-member' ),
+					'required'      => 0,
+					'public'        => 1,
+					'editable'      => 1,
+					'default'       => 'Everyone',
+					'options'       => $profile_privacy,
+					'allowclear'    => 0,
+					'account_only'  => true,
 					'required_perm' => 'can_make_private_profile',
 				),
 
-				'hide_in_members' => array(
+				'profile_noindex'       => array(
+					'title'         => __( 'Avoid indexing my profile by search engines', 'ultimate-member' ),
+					'metakey'       => 'profile_noindex',
+					'type'          => 'select',
+					'label'         => __( 'Avoid indexing my profile by search engines', 'ultimate-member' ),
+					'help'          => __( 'Hide my profile for robots?', 'ultimate-member' ),
+					'required'      => 0,
+					'public'        => 1,
+					'editable'      => 1,
+					'default'       => UM()->roles()->um_user_can( 'profile_noindex' ) ? '1' : '0',
+					'options'       => array(
+						'0'     => __( 'No', 'ultimate-member' ),
+						'1'     => __( 'Yes', 'ultimate-member' ),
+					),
+					'allowclear'    => 0,
+					'account_only'  => true,
+					'required_perm' => 'can_make_private_profile',
+				),
+
+				'hide_in_members'       => array(
 					'title'         => __( 'Hide my profile from directory', 'ultimate-member' ),
 					'metakey'       => 'hide_in_members',
 					'type'          => 'radio',
@@ -1148,29 +1251,32 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'required_opt'  => array( 'members_page', 1 ),
 				),
 
-				'delete_account' => array(
-					'title' => __('Delete Account','ultimate-member'),
-					'metakey' => 'delete_account',
-					'type' => 'radio',
-					'label' => __('Delete Account','ultimate-member'),
-					'help' => __('If you confirm, everything related to your profile will be deleted permanently from the site','ultimate-member'),
-					'required' => 0,
-					'public' => 1,
-					'editable' => 1,
-					'default' => __('No','ultimate-member'),
-					'options' => array( __('Yes','ultimate-member') , __('No','ultimate-member') ),
-					'account_only' => true,
+				'delete_account'        => array(
+					'title'         => __( 'Delete Account', 'ultimate-member' ),
+					'metakey'       => 'delete_account',
+					'type'          => 'radio',
+					'label'         => __( 'Delete Account', 'ultimate-member'),
+					'help'          => __( 'If you confirm, everything related to your profile will be deleted permanently from the site', 'ultimate-member' ),
+					'required'      => 0,
+					'public'        => 1,
+					'editable'      => 1,
+					'default'       => __( 'No', 'ultimate-member' ),
+					'options'       => array(
+						__( 'Yes', 'ultimate-member' ),
+						__( 'No', 'ultimate-member' )
+					),
+					'account_only'  => true,
 				),
 
-				'single_user_password' => array(
-					'title' => __('Password','ultimate-member'),
-					'metakey' => 'single_user_password',
-					'type' => 'password',
-					'label' => __('Password','ultimate-member'),
-					'required' => 1,
-					'public' => 1,
-					'editable' => 1,
-					'account_only' => true,
+				'single_user_password'  => array(
+					'title'         => __( 'Password', 'ultimate-member' ),
+					'metakey'       => 'single_user_password',
+					'type'          => 'password',
+					'label'         => __( 'Password', 'ultimate-member' ),
+					'required'      => 1,
+					'public'        => 1,
+					'editable'      => 1,
+					'account_only'  => true,
 				),
 
 			);
@@ -1351,7 +1457,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 			$array['numeric'] = __('Numeric value only','ultimate-member');
 			$array['phone_number'] = __('Phone Number','ultimate-member');
 			$array['skype'] = __('Skype ID','ultimate-member');
-			$array['soundcloud'] = __('SoundCloud Profile','ultimate-member');
+			$array['soundcloud'] = __( 'SoundCloud Profile', 'ultimate-member' );
 			$array['twitter_url'] = __('Twitter URL','ultimate-member');
 			$array['is_email'] = __('E-mail( Not Unique )','ultimate-member');
 			$array['unique_email'] = __('Unique E-mail','ultimate-member');
@@ -1360,6 +1466,8 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 			$array['unique_username_or_email'] = __('Unique Username/E-mail','ultimate-member');
 			$array['url'] = __('Website URL','ultimate-member');
 			$array['youtube_url'] = __('YouTube Profile','ultimate-member');
+			$array['telegram_url'] = __('Telegram URL','ultimate-member');
+			$array['discord'] = __('Discord ID','ultimate-member');
 			$array['custom'] = __('Custom Validation','ultimate-member');
 
 			/**
@@ -1475,7 +1583,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 						"iu" => __("Inuktitut",'ultimate-member'),
 						"ja" => __("Japanese",'ultimate-member'),
 						"jv" => __("Javanese",'ultimate-member'),
-						"ka" => __("Georgian",'ultimate-member'),
+						"ka" => __("Kartuli",'ultimate-member'),
 						"kg" => __("Kongo",'ultimate-member'),
 						"ki" => __("Kikuyu",'ultimate-member'),
 						"kj" => __("Kwanyama",'ultimate-member'),
@@ -1667,7 +1775,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 						'TF' => __('French Southern Territories','ultimate-member'),
 						'GA' => __('Gabon','ultimate-member'),
 						'GM' => __('Gambia','ultimate-member'),
-						'GE' => __('Georgia','ultimate-member'),
+						'GE' => __('Sakartvelo','ultimate-member'),
 						'DE' => __('Germany','ultimate-member'),
 						'GH' => __('Ghana','ultimate-member'),
 						'GI' => __('Gibraltar','ultimate-member'),
