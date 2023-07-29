@@ -64,9 +64,11 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 			add_filter( 'um_settings_section_install_info__content', array( $this, 'settings_install_info_tab' ), 10, 2 );
 
+			//custom content for override templates tab
+			add_action( 'plugins_loaded', array( $this, 'um_check_template_version' ), 10 );
+			add_filter( 'um_settings_section_override_templates__content', array( $this, 'settings_override_templates_tab' ), 10, 2 );
 
 			add_filter( 'um_settings_structure', array( $this, 'sorting_licenses_options' ), 9999, 1 );
-
 
 			//save handlers
 			add_action( 'admin_init', array( $this, 'save_settings_handler' ), 10 );
@@ -75,9 +77,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 			add_action( 'um_settings_before_save', array( $this, 'check_permalinks_changes' ) );
 			add_action( 'um_settings_save', array( $this, 'on_settings_save' ) );
 
-
 			add_filter( 'um_change_settings_before_save', array( $this, 'save_email_templates' ) );
-
 
 			//save licenses options
 			add_action( 'um_settings_before_save', array( $this, 'before_licenses_save' ) );
@@ -106,6 +106,9 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 				$metakeys = array();
 				foreach ( UM()->builtin()->all_user_fields as $all_user_field ) {
+					if ( ! array_key_exists( 'metakey', $all_user_field ) ) {
+						continue;
+					}
 					$metakeys[] = $all_user_field['metakey'];
 				}
 
@@ -222,6 +225,16 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 					$values[] = $wpdb->prepare( '(%d, %s, %s)', $metarow['user_id'], $metarow['meta_key'], $metarow['meta_value'] );
 				}
 
+				// maybe create table.
+				$table_name = $wpdb->prefix . 'um_metadata';
+				$query      = $wpdb->prepare(
+					'SHOW TABLES LIKE %s',
+					$wpdb->esc_like( $table_name )
+				);
+				if ( $wpdb->get_var( $query ) !== $table_name ) {
+					UM()->setup()->create_db();
+				}
+
 				if ( ! empty( $values ) ) {
 					$wpdb->query(
 						"INSERT INTO
@@ -232,8 +245,10 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 				$from = ( absint( $_POST['page'] ) * $per_page ) - $per_page + 1;
 				$to   = absint( $_POST['page'] ) * $per_page;
-
+				// translators: %1$s is a metadata from name; %2$s is a metadata to.
 				wp_send_json_success( array( 'message' => sprintf( __( 'Metadata from %1$s to %2$s was upgraded successfully...', 'ultimate-member' ), $from, $to ) ) );
+			} else {
+				do_action( 'um_same_page_update_ajax_action', $cb_func );
 			}
 		}
 
@@ -407,6 +422,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 						'id'          => 'profile_menu_icons',
 						'type'        => 'checkbox',
 						'label'       => __( 'Enable menu icons in desktop view', 'ultimate-member' ),
+						'description' => __( '"Desktop view" means the profile block\'s width lower than 800px', 'ultimate-member' ),
 						'conditional' => array( 'profile_menu', '=', 1 ),
 					),
 				)
@@ -425,7 +441,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 			$duplicates         = array();
 			$taxonomies_options = array();
 			$exclude_taxonomies = UM()->excluded_taxonomies();
-			$all_taxonomies     = get_taxonomies( array( 'public' => true ), 'objects' );
+			$all_taxonomies     = get_taxonomies( array( 'public' => true, 'show_ui' => true ), 'objects' );
 			foreach ( $all_taxonomies as $key => $taxonomy ) {
 				if ( in_array( $key, $exclude_taxonomies, true ) ) {
 					continue;
@@ -673,6 +689,9 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 					'use_um_gravatar_default_image'         => array(
 						'sanitize' => 'bool',
 					),
+					'toggle_password'                       => array(
+						'sanitize' => 'bool',
+					),
 					'require_strongpass'                    => array(
 						'sanitize' => 'bool',
 					),
@@ -757,11 +776,20 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 					'reset_password_limit_number'           => array(
 						'sanitize' => 'absint',
 					),
+					'change_password_request_limit'         => array(
+						'sanitize' => 'bool',
+					),
 					'blocked_emails'                        => array(
 						'sanitize' => 'textarea',
 					),
 					'blocked_words'                         => array(
 						'sanitize' => 'textarea',
+					),
+					'allowed_choice_callbacks'              => array(
+						'sanitize' => 'textarea',
+					),
+					'allow_url_redirect_confirm'            => array(
+						'sanitize' => 'bool',
 					),
 					'admin_email'                           => array(
 						'sanitize' => 'text',
@@ -922,6 +950,24 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 					'uninstall_on_delete'                   => array(
 						'sanitize' => 'bool',
 					),
+					'lock_register_forms'                   => array(
+						'sanitize' => 'bool',
+					),
+					'display_login_form_notice'             => array(
+						'sanitize' => 'bool',
+					),
+					'banned_capabilities'                   => array(
+						'sanitize' => array( UM()->admin(), 'sanitize_wp_capabilities_assoc' ),
+					),
+					'secure_notify_admins_banned_accounts'  => array(
+						'sanitize' => 'bool',
+					),
+					'secure_notify_admins_banned_accounts__interval' => array(
+						'sanitize' => 'key',
+					),
+					'secure_allowed_redirect_hosts'        => array(
+						'sanitize' => 'textarea',
+					),
 				)
 			);
 
@@ -1044,6 +1090,12 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 										'label'       => __( 'Use Default plugin avatar as Gravatar\'s Default avatar', 'ultimate-member' ),
 										'tooltip'     => __( 'Do you want to use the plugin default avatar instead of the gravatar default photo (If the user did not upload a custom profile photo / avatar)', 'ultimate-member' ),
 										'conditional' => array( 'use_um_gravatar_default_builtin_image', '=', 'default' ),
+									),
+									array(
+										'id'      => 'toggle_password',
+										'type'    => 'checkbox',
+										'label'   => __( 'Show/hide password button', 'ultimate-member' ),
+										'tooltip' => __( 'Enable visibility for show/hide password button for the password field-type.', 'ultimate-member' ),
 									),
 									array(
 										'id'      => 'require_strongpass',
@@ -1278,6 +1330,12 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 										'size'        => 'small',
 									),
 									array(
+										'id'      => 'change_password_request_limit',
+										'type'    => 'checkbox',
+										'label'   => __( 'Change Password request limit', 'ultimate-member' ),
+										'tooltip' => __( 'This option adds rate limit when submitting the change password form in the Account page. Users are only allowed to submit 1 request per 30 minutes to prevent from any brute-force attacks or password guessing with the form.', 'ultimate-member' ),
+									),
+									array(
 										'id'      => 'blocked_emails',
 										'type'    => 'textarea',
 										'label'   => __( 'Blocked Email Addresses (Enter one email per line)', 'ultimate-member' ),
@@ -1288,6 +1346,18 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 										'type'    => 'textarea',
 										'label'   => __( 'Blacklist Words (Enter one word per line)', 'ultimate-member' ),
 										'tooltip' => __( 'This option lets you specify blacklist of words to prevent anyone from signing up with such a word as their username', 'ultimate-member' ),
+									),
+									array(
+										'id'      => 'allowed_choice_callbacks',
+										'type'    => 'textarea',
+										'label'   => __( 'Allowed Choice Callbacks (Enter one PHP function per line)', 'ultimate-member' ),
+										'tooltip' => __( 'This option lets you specify the choice callback functions to prevent anyone from using 3rd-party functions that may put your site at risk.', 'ultimate-member' ),
+									),
+									array(
+										'id'      => 'allow_url_redirect_confirm',
+										'type'    => 'checkbox',
+										'label'   => __( 'Allow external link redirect confirm', 'ultimate-member' ),
+										'tooltip' => __( 'Using JS.confirm alert when you go to an external link.', 'ultimate-member' ),
 									),
 								),
 							),
@@ -1797,6 +1867,14 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 							),
 						),
 					),
+					'override_templates' => array(
+						'title'  => __( 'Override templates', 'ultimate-member' ),
+						'fields' => array(
+							array(
+								'type' => 'override_templates',
+							),
+						),
+					),
 				)
 			);
 
@@ -1924,7 +2002,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 			 */
 			do_action( "um_settings_page_before_" . $current_tab . "_" . $current_subtab . "_content" );
 
-			if ( in_array( $current_tab, apply_filters('um_settings_custom_tabs', array( 'licenses', 'install_info' ) ) ) || in_array( $current_subtab, apply_filters( 'um_settings_custom_subtabs', array(), $current_tab ) ) ) {
+			if ( in_array( $current_tab, apply_filters('um_settings_custom_tabs', array( 'licenses', 'install_info', 'override_templates' ) ) ) || in_array( $current_subtab, apply_filters( 'um_settings_custom_subtabs', array(), $current_tab ) ) ) {
 
 				/**
 				 * UM hook
@@ -2221,7 +2299,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 				//redirect after save settings
 				$arg = array(
 					'page'   => 'um_options',
-					'update' => 'settings_updated',
+					'update' => 'um_settings_updated',
 				);
 
 				if ( ! empty( $_GET['tab'] ) ) {
@@ -2686,9 +2764,10 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 										case 'expired' :
 
-											$class = 'expired';
+											$class      = 'expired';
 											$messages[] = sprintf(
-												__( 'Your license key expired on %s. Please <a href="%s" target="_blank">renew your license key</a>.', 'ultimate-member' ),
+												// translators: %1$s is a expiry date; %2$s is a renew link.
+												__( 'Your license key expired on %1$s. Please <a href="%2$s" target="_blank">renew your license key</a>.', 'ultimate-member' ),
 												date_i18n( get_option( 'date_format' ), strtotime( $license->expires, current_time( 'timestamp' ) ) ),
 												'https://ultimatemember.com/checkout/?edd_license_key=' . $value . '&utm_campaign=admin&utm_source=licenses&utm_medium=expired'
 											);
@@ -2701,6 +2780,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 											$class = 'error';
 											$messages[] = sprintf(
+												// translators: %s: support link name.
 												__( 'Your license key has been disabled. Please <a href="%s" target="_blank">contact support</a> for more information.', 'ultimate-member' ),
 												'https://ultimatemember.com/support?utm_campaign=admin&utm_source=licenses&utm_medium=revoked'
 											);
@@ -2713,6 +2793,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 											$class = 'error';
 											$messages[] = sprintf(
+												// translators: %s: account page.
 												__( 'Invalid license. Please <a href="%s" target="_blank">visit your account page</a> and verify it.', 'ultimate-member' ),
 												'https://ultimatemember.com/account?utm_campaign=admin&utm_source=licenses&utm_medium=missing'
 											);
@@ -2726,7 +2807,8 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 											$class = 'error';
 											$messages[] = sprintf(
-												__( 'Your %s is not active for this URL. Please <a href="%s" target="_blank">visit your account page</a> to manage your license key URLs.', 'ultimate-member' ),
+												// translators: %1$s is a item name title; %2$s is a account page.
+												__( 'Your %1$s is not active for this URL. Please <a href="%2$s" target="_blank">visit your account page</a> to manage your license key URLs.', 'ultimate-member' ),
 												$field_data['item_name'],
 												'https://ultimatemember.com/account?utm_campaign=admin&utm_source=licenses&utm_medium=invalid'
 											);
@@ -2738,6 +2820,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 										case 'item_name_mismatch' :
 
 											$class = 'error';
+											// translators: %s: item name.
 											$messages[] = sprintf( __( 'This appears to be an invalid license key for %s.', 'ultimate-member' ), $field_data['item_name'] );
 
 											$license_status = 'license-' . $class . '-notice';
@@ -2747,6 +2830,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 										case 'no_activations_left':
 
 											$class = 'error';
+											// translators: %s: account link.
 											$messages[] = sprintf( __( 'Your license key has reached its activation limit. <a href="%s">View possible upgrades</a> now.', 'ultimate-member' ), 'https://ultimatemember.com/account' );
 
 											$license_status = 'license-' . $class . '-notice';
@@ -2765,7 +2849,8 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 											$class = 'error';
 											$error = ! empty(  $license->error ) ? $license->error : __( 'unknown_error', 'ultimate-member' );
-											$messages[] = sprintf( __( 'There was an error with this license key: %s. Please <a href="%s">contact our support team</a>.', 'ultimate-member' ), $error, 'https://ultimatemember.com/support' );
+											// translators: %1$s is an error; %2$s is a support link.
+											$messages[] = sprintf( __( 'There was an error with this license key: %1$s. Please <a href="%2$s">contact our support team</a>.', 'ultimate-member' ), $error, 'https://ultimatemember.com/support' );
 
 											$license_status = 'license-' . $class . '-notice';
 											break;
@@ -2773,7 +2858,8 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 								} else {
 									$class = 'error';
 									$error = ! empty( $license->error ) ? $license->error : __( 'unknown_error', 'ultimate-member' );
-									$messages[] = sprintf( __( 'There was an error with this license key: %s. Please <a href="%s">contact our support team</a>.', 'ultimate-member' ), $error, 'https://ultimatemember.com/support' );
+									// translators: %1$s is an error; %2$s is a support link.
+									$messages[] = sprintf( __( 'There was an error with this license key: %1$s. Please <a href="%2$s">contact our support team</a>.', 'ultimate-member' ), $error, 'https://ultimatemember.com/support' );
 
 									$license_status = 'license-' . $class . '-notice';
 								}
@@ -2786,7 +2872,8 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 								$class = 'error';
 								$error = ! empty( $errors[0] ) ? $errors[0] : __( 'unknown_error', 'ultimate-member' );
 								$errors_data = ! empty( $errors_data[0][0] ) ? ', ' . $errors_data[0][0] : '';
-								$messages[] = sprintf( __( 'There was an error with this license key: %s%s. Please <a href="%s">contact our support team</a>.', 'ultimate-member' ), $error, $errors_data, 'https://ultimatemember.com/support' );
+								// translators: %1$s is an error; %2$s is a error data; %3$s is a support link.
+								$messages[] = sprintf( __( 'There was an error with this license key: %1$s%2$s. Please <a href="%3$s">contact our support team</a>.', 'ultimate-member' ), $error, $errors_data, 'https://ultimatemember.com/support' );
 
 								$license_status = 'license-' . $class . '-notice';
 
@@ -2798,7 +2885,8 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 										$class = 'expired';
 										$messages[] = sprintf(
-											__( 'Your license key expired on %s. Please <a href="%s" target="_blank">renew your license key</a>.', 'ultimate-member' ),
+											// translators: %1$s is a expiry date; %2$s is a renew link.
+											__( 'Your license key expired on %1$s. Please <a href="%2$s" target="_blank">renew your license key</a>.', 'ultimate-member' ),
 											date_i18n( get_option( 'date_format' ), strtotime( $license->expires, current_time( 'timestamp' ) ) ),
 											'https://ultimatemember.com/checkout/?edd_license_key=' . $value . '&utm_campaign=admin&utm_source=licenses&utm_medium=expired'
 										);
@@ -2811,6 +2899,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 										$class = 'error';
 										$messages[] = sprintf(
+											// translators: %s: support link name.
 											__( 'Your license key has been disabled. Please <a href="%s" target="_blank">contact support</a> for more information.', 'ultimate-member' ),
 											'https://ultimatemember.com/support?utm_campaign=admin&utm_source=licenses&utm_medium=revoked'
 										);
@@ -2823,6 +2912,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 										$class = 'error';
 										$messages[] = sprintf(
+											// translators: %s: account page.
 											__( 'Invalid license. Please <a href="%s" target="_blank">visit your account page</a> and verify it.', 'ultimate-member' ),
 											'https://ultimatemember.com/account?utm_campaign=admin&utm_source=licenses&utm_medium=missing'
 										);
@@ -2836,7 +2926,8 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 
 										$class = 'error';
 										$messages[] = sprintf(
-											__( 'Your %s is not active for this URL. Please <a href="%s" target="_blank">visit your account page</a> to manage your license key URLs.', 'ultimate-member' ),
+											// translators: %1$s is a item name title; %2$s is a account page.
+											__( 'Your %1$s is not active for this URL. Please <a href="%2$s" target="_blank">visit your account page</a> to manage your license key URLs.', 'ultimate-member' ),
 											$field_data['item_name'],
 											'https://ultimatemember.com/account?utm_campaign=admin&utm_source=licenses&utm_medium=invalid'
 										);
@@ -2848,6 +2939,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 									case 'item_name_mismatch' :
 
 										$class = 'error';
+										// translators: %s: item name.
 										$messages[] = sprintf( __( 'This appears to be an invalid license key for %s.', 'ultimate-member' ), $field_data['item_name'] );
 
 										$license_status = 'license-' . $class . '-notice';
@@ -2857,6 +2949,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 									case 'no_activations_left':
 
 										$class = 'error';
+										// translators: %s: account link.
 										$messages[] = sprintf( __( 'Your license key has reached its activation limit. <a href="%s">View possible upgrades</a> now.', 'ultimate-member' ), 'https://ultimatemember.com/account' );
 
 										$license_status = 'license-' . $class . '-notice';
@@ -2888,7 +2981,8 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 										} elseif( $expiration > $now && $expiration - $now < ( DAY_IN_SECONDS * 30 ) ) {
 
 											$messages[] = sprintf(
-												__( 'Your license key expires soon! It expires on %s. <a href="%s" target="_blank">Renew your license key</a>.', 'ultimate-member' ),
+												// translators: %1$s is a expiry date; %2$s is a renew link.
+												__( 'Your license key expires soon! It expires on %1$s. <a href="%2$s" target="_blank">Renew your license key</a>.', 'ultimate-member' ),
 												date_i18n( get_option( 'date_format' ), strtotime( $license->expires, current_time( 'timestamp' ) ) ),
 												'https://ultimatemember.com/checkout/?edd_license_key=' . $value . '&utm_campaign=admin&utm_source=licenses&utm_medium=renew'
 											);
@@ -2898,6 +2992,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 										} else {
 
 											$messages[] = sprintf(
+												// translators: %s: expiry date.
 												__( 'Your license key expires on %s.', 'ultimate-member' ),
 												date_i18n( get_option( 'date_format' ), strtotime( $license->expires, current_time( 'timestamp' ) ) )
 											);
@@ -2916,6 +3011,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 							$class = 'empty';
 
 							$messages[] = sprintf(
+								// translators: %s: item name.
 								__( 'To receive updates, please enter your valid %s license key.', 'ultimate-member' ),
 								$field_data['item_name']
 							);
@@ -2963,6 +3059,239 @@ if ( ! class_exists( 'um\admin\core\Admin_Settings' ) ) {
 			<?php $section = ob_get_clean();
 
 			return $section;
+		}
+
+		/**
+		 * Periodically checking the versions of templates.
+		 *
+		 * @since 2.6.1
+		 *
+		 * @return void
+		 */
+		public function um_check_template_version() {
+			$um_check_version = get_transient( 'um_check_template_versions' );
+			if ( false === $um_check_version ) {
+				$this->get_override_templates();
+			}
+		}
+
+		/**
+		 * HTML for Settings > Override Templates tab.
+		 * @return void
+		 */
+		public function settings_override_templates_tab() {
+			$um_check_version = get_transient( 'um_check_template_versions' );
+
+			$check_url = add_query_arg(
+				array(
+					'um_adm_action' => 'check_templates_version',
+					'_wpnonce'      => wp_create_nonce( 'check_templates_version' ),
+				)
+			);
+			?>
+
+			<p class="description" style="margin: 20px 0 0 0;">
+				<a href="<?php echo esc_url( $check_url ); ?>" class="button" style="margin-right: 10px;">
+					<?php esc_html_e( 'Re-check templates', 'ultimate-member' ); ?>
+				</a>
+				<?php
+				if ( false !== $um_check_version ) {
+					// translators: %s: Last checking templates time.
+					echo esc_html( sprintf( __( 'Last update: %s. You could re-check changes manually.', 'ultimate-member' ), wp_date( get_option( 'date_format', 'Y-m-d' ) . ' ' . get_option( 'time_format', 'H:i:s' ), $um_check_version ) ) );
+				} else {
+					esc_html_e( 'Templates haven\'t check yet. You could check changes manually.', 'ultimate-member' );
+				}
+				?>
+			</p>
+			<p class="description" style="margin: 20px 0 0 0;">
+				<?php
+				/** @noinspection HtmlUnknownTarget */
+				// translators: %s: Link to the docs article.
+				echo wp_kses( sprintf( __( 'You may get more details about overriding templates <a href="%s" target="_blank">here</a>.', 'ultimate-member' ), 'https://docs.ultimatemember.com/article/1516-templates-map' ), UM()->get_allowed_html( 'admin_notice' ) );
+				?>
+			</p>
+
+			<?php
+			include_once um_path . 'includes/admin/core/list-tables/version-template-list-table.php';
+		}
+
+
+		/**
+		 * @param $get_list boolean
+		 *
+		 * @return array|void
+		 */
+		public function get_override_templates( $get_list = false ) {
+			$outdated_files   = array();
+			$scan_files['um'] = $this->scan_template_files( um_path . '/templates/' );
+			/**
+			 * Filters an array of the template files for scanning versions.
+			 *
+			 * @since 2.6.1
+			 * @hook um_override_templates_scan_files
+			 *
+			 * @param {array} $scan_files Template files for scanning versions.
+			 *
+			 * @return {array} Template files for scanning versions.
+			 */
+			$scan_files = apply_filters( 'um_override_templates_scan_files', $scan_files );
+			$out_date   = false;
+
+			set_transient( 'um_check_template_versions', time(), 12 * HOUR_IN_SECONDS );
+
+			foreach ( $scan_files as $key => $files ) {
+				foreach ( $files as $file ) {
+					if ( false === strpos( $file, 'email/' ) ) {
+						$located = array();
+						/**
+						 * Filters an array of the template files for scanning versions based on $key.
+						 *
+						 * Note: $key - means um or extension key.
+						 *
+						 * @since 2.6.1
+						 * @hook um_override_templates_get_template_path__{$key}
+						 *
+						 * @param {array}  $located Template file paths for scanning versions.
+						 * @param {string} $file    Template file name.
+						 *
+						 * @return {array} Template file paths for scanning versions.
+						 */
+						$located = apply_filters( "um_override_templates_get_template_path__{$key}", $located, $file );
+
+						$exceptions = array(
+							'members-grid.php',
+							'members-header.php',
+							'members-list.php',
+							'members-pagination.php',
+							'searchform.php',
+							'login-to-view.php',
+							'profile/comments.php',
+							'profile/comments-single.php',
+							'profile/posts.php',
+							'profile/posts-single.php',
+							'modal/um_upload_single.php',
+							'modal/um_view_photo.php',
+						);
+
+						if ( ! empty( $located ) ) {
+							$theme_file = $located['theme'];
+						} elseif ( in_array( $file, $exceptions, true ) && file_exists( get_stylesheet_directory() . '/ultimate-member/' . $file ) ) {
+							$theme_file = get_stylesheet_directory() . '/ultimate-member/' . $file;
+						} elseif ( file_exists( get_stylesheet_directory() . '/ultimate-member/templates/' . $file ) ) {
+							$theme_file = get_stylesheet_directory() . '/ultimate-member/templates/' . $file;
+						} else {
+							$theme_file = false;
+						}
+
+						if ( ! empty( $theme_file ) ) {
+							$core_file = $file;
+
+							if ( ! empty( $located ) ) {
+								$core_path      = $located['core'];
+								$core_file_path = stristr( $core_path, 'wp-content' );
+							} else {
+								$core_path      = um_path . '/templates/' . $core_file;
+								$core_file_path = stristr( um_path . 'templates/' . $core_file, 'wp-content' );
+							}
+							$core_version  = $this->get_file_version( $core_path );
+							$theme_version = $this->get_file_version( $theme_file );
+
+							$status      = esc_html__( 'Theme version up to date', 'ultimate-member' );
+							$status_code = 1;
+							if ( version_compare( $theme_version, $core_version, '<' ) ) {
+								$status      = esc_html__( 'Theme version is out of date', 'ultimate-member' );
+								$status_code = 0;
+							}
+							if ( '' === $theme_version ) {
+								$status      = esc_html__( 'Theme version is empty', 'ultimate-member' );
+								$status_code = 0;
+							}
+							if ( 0 === $status_code ) {
+								$out_date = true;
+								update_option( 'um_override_templates_outdated', true );
+							}
+							$outdated_files[] = array(
+								'core_version'  => $core_version,
+								'theme_version' => $theme_version,
+								'core_file'     => $core_file_path,
+								'theme_file'    => stristr( $theme_file, 'wp-content' ),
+								'status'        => $status,
+								'status_code'   => $status_code,
+							);
+						}
+					}
+				}
+			}
+
+			if ( false === $out_date ) {
+				delete_option( 'um_override_templates_outdated' );
+			}
+			update_option( 'um_template_statuses', $outdated_files );
+			if ( true === $get_list ) {
+				return $outdated_files;
+			}
+		}
+
+
+		/**
+		 * Scan the template files.
+		 *
+		 * @param  string $template_path Path to the template directory.
+		 * @return array
+		 */
+		public static function scan_template_files( $template_path ) {
+			$files  = @scandir( $template_path ); // @codingStandardsIgnoreLine.
+			$result = array();
+
+			if ( ! empty( $files ) ) {
+
+				foreach ( $files as $value ) {
+
+					if ( ! in_array( $value, array( '.', '..' ), true ) ) {
+
+						if ( is_dir( $template_path . DIRECTORY_SEPARATOR . $value ) ) {
+							$sub_files = self::scan_template_files( $template_path . DIRECTORY_SEPARATOR . $value );
+							foreach ( $sub_files as $sub_file ) {
+								$result[] = $value . DIRECTORY_SEPARATOR . $sub_file;
+							}
+						} else {
+							$result[] = $value;
+						}
+					}
+				}
+			}
+			return $result;
+		}
+
+		/**
+		 * @param $file string
+		 *
+		 * @return string
+		 */
+		public static function get_file_version( $file ) {
+			// Avoid notices if file does not exist.
+			if ( ! file_exists( $file ) ) {
+				return '';
+			}
+
+			// We don't need to write to the file, so just open for reading.
+			$fp = fopen( $file, 'r' ); // @codingStandardsIgnoreLine.
+
+			// Pull only the first 8kiB of the file in.
+			$file_data = fread( $fp, 8192 ); // @codingStandardsIgnoreLine.
+
+			// PHP will close a file handle, but we are good citizens.
+			fclose( $fp ); // @codingStandardsIgnoreLine.
+
+			// Make sure we catch CR-only line endings.
+			$file_data = str_replace( "\r", "\n", $file_data );
+			$version   = '';
+
+			if ( preg_match( '/^[ \t\/*#@]*' . preg_quote( '@version', '/' ) . '(.*)$/mi', $file_data, $match ) && $match[1] ) {
+				$version = _cleanup_header_comment( $match[1] );
+			}
+
+			return $version;
 		}
 
 
@@ -3152,7 +3481,6 @@ do_action( "um_install_info_after_page_config" ); ?>
 Default New User Role: 		<?php  echo UM()->options()->get('register_role') . "\n"; ?>
 Profile Permalink Base:		<?php  echo UM()->options()->get('permalink_base') . "\n"; ?>
 User Display Name:			<?php  echo UM()->options()->get('display_name') . "\n"; ?>
-Force Name to Uppercase:		<?php echo $this->info_value( UM()->options()->get('force_display_name_capitlized'), 'yesno', true ); ?>
 Redirect author to profile: 		<?php echo $this->info_value( UM()->options()->get('author_redirect'), 'yesno', true ); ?>
 Enable Members Directory:	<?php echo $this->info_value( UM()->options()->get('members_page'), 'yesno', true ); ?>
 Use Gravatars: 				<?php echo $this->info_value( UM()->options()->get('use_gravatars'), 'yesno', true ); ?>
@@ -3196,18 +3524,22 @@ Blacklist Words: 							<?php echo  count( explode("\n",UM()->options()->get('bl
 
 --- UM Email Configurations ---
 
-Mail appears from:  			<?php $mail_from = UM()->options()->get('mail_from'); if( ! empty( $mail_from ) ){echo UM()->options()->get('mail_from');}else{echo "-";}; echo "\n";?>
-Mail appears from address:  	<?php $mail_from_addr = UM()->options()->get('mail_from_addr'); if( ! empty( $mail_from_addr ) ){echo UM()->options()->get('mail_from_addr');}else{echo "-";}; echo "\n";?>
-Use HTML for E-mails:   		<?php echo $this->info_value( UM()->options()->get('email_html'), 'yesno', true ); ?>
-Account Welcome Email:  		<?php echo $this->info_value( UM()->options()->get('welcome_email_on'), 'yesno', true ); ?>
-Account Activation Email:   	<?php echo $this->info_value( UM()->options()->get('checkmail_email_on'), 'yesno', true ); ?>
-Pending Review Email:   		<?php echo $this->info_value( UM()->options()->get('pending_email_on'), 'yesno', true ); ?>
-Account Approved Email: 		<?php echo $this->info_value( UM()->options()->get('approved_email_on'), 'yesno', true ); ?>
-Account Rejected Email: 		<?php echo $this->info_value( UM()->options()->get('rejected_email_on'), 'yesno', true ); ?>
-Account Deactivated Email:  	<?php echo $this->info_value( UM()->options()->get('inactive_email_on'), 'yesno', true ); ?>
-Account Deleted Email:  		<?php echo $this->info_value( UM()->options()->get('deletion_email_on'), 'yesno', true ); ?>
-Password Reset Email:   		<?php echo $this->info_value( UM()->options()->get('resetpw_email_on'), 'yesno', true ); ?>
-Password Changed Email: 		<?php echo $this->info_value( UM()->options()->get('changedpw_email_on'), 'yesno', true ); ?>
+Mail appears from:					<?php $mail_from = UM()->options()->get( 'mail_from' ); if ( ! empty( $mail_from ) ){ echo UM()->options()->get( 'mail_from' ); } else { echo "-"; }; echo "\n"; ?>
+Mail appears from address:			<?php $mail_from_addr = UM()->options()->get( 'mail_from_addr' ); if ( ! empty( $mail_from_addr ) ) { echo UM()->options()->get( 'mail_from_addr' ); } else { echo "-"; }; echo "\n"; ?>
+Use HTML for E-mails:				<?php echo $this->info_value( UM()->options()->get( 'email_html' ), 'yesno', true ); ?>
+Account Welcome Email:  			<?php echo $this->info_value( UM()->options()->get( 'welcome_email_on' ), 'yesno', true ); ?>
+Account Activation Email:			<?php echo $this->info_value( UM()->options()->get( 'checkmail_email_on' ), 'yesno', true ); ?>
+Pending Review Email:				<?php echo $this->info_value( UM()->options()->get( 'pending_email_on' ), 'yesno', true ); ?>
+Account Approved Email: 			<?php echo $this->info_value( UM()->options()->get( 'approved_email_on' ), 'yesno', true ); ?>
+Account Rejected Email: 			<?php echo $this->info_value( UM()->options()->get( 'rejected_email_on' ), 'yesno', true ); ?>
+Account Deactivated Email:			<?php echo $this->info_value( UM()->options()->get( 'inactive_email_on' ), 'yesno', true ); ?>
+Account Deleted Email:				<?php echo $this->info_value( UM()->options()->get( 'deletion_email_on' ), 'yesno', true ); ?>
+Password Reset Email:				<?php echo $this->info_value( UM()->options()->get( 'resetpw_email_on' ), 'yesno', true ); ?>
+Password Changed Email: 			<?php echo $this->info_value( UM()->options()->get( 'changedpw_email_on' ), 'yesno', true ); ?>
+Account Updated Email:				<?php echo $this->info_value( UM()->options()->get( 'changedaccount_email_on' ), 'yesno', true ); ?>
+New User Notification:				<?php echo $this->info_value( UM()->options()->get( 'notification_new_user_on' ), 'yesno', true ); ?>
+Account Needs Review Notification:	<?php echo $this->info_value( UM()->options()->get( 'notification_review_on' ), 'yesno', true ); ?>
+Account Deletion Notification:		<?php echo $this->info_value( UM()->options()->get( 'notification_deletion_on' ), 'yesno', true ); ?>
 
 
 --- UM Total Users ---
@@ -3228,34 +3560,34 @@ Password Changed Email: 		<?php echo $this->info_value( UM()->options()->get('ch
 
 --- UM Custom Templates ---
 
-				<?php // Show templates that have been copied to the theme's edd_templates dir
-				$dir = get_stylesheet_directory() . '/ultimate-member/templates/*.php';
-				if ( ! empty( $dir ) ) {
-					$found = glob( $dir );
-					if ( ! empty( $found ) ) {
-						foreach ( glob( $dir ) as $file ) {
-							echo "File: " . $file  . "\n";
-						}
-					} else {
-						echo 'N/A'."\n";
-					}
-				} ?>
+<?php // Show templates that have been copied to the theme's edd_templates dir
+$dir = get_stylesheet_directory() . '/ultimate-member/templates/*.php';
+if ( ! empty( $dir ) ) {
+	$found = glob( $dir );
+	if ( ! empty( $found ) ) {
+		foreach ( glob( $dir ) as $file ) {
+			echo "File: " . $file  . "\n";
+		}
+	} else {
+		echo 'N/A'."\n";
+	}
+} ?>
 
 
---- UM Email HTML Templates ---
+--- UM Custom Email Templates ---
 
-				<?php $dir = get_stylesheet_directory() . '/ultimate-member/templates/emails/*.html';
+<?php $dir = get_stylesheet_directory() . '/ultimate-member/email/*.php';
 
-				if ( ! empty( $dir ) ) {
-					$found =  glob( $dir );
-					if ( ! empty( $found ) ){
-						foreach ( glob( $dir ) as $file ) {
-							echo "File: ". $file  . "\n";
-						}
-					} else {
-						echo 'N/A'."\n";
-					}
-				} ?>
+if ( ! empty( $dir ) ) {
+	$found =  glob( $dir );
+	if ( ! empty( $found ) ){
+		foreach ( glob( $dir ) as $file ) {
+			echo "File: ". $file  . "\n";
+		}
+	} else {
+		echo 'N/A'."\n";
+	}
+} ?>
 
 
 --- Web Server Configurations ---
@@ -3429,7 +3761,6 @@ Use Only Cookies:         			<?php echo ini_get( 'session.use_only_cookies' ) ? 
 		 * @return array
 		 */
 		function save_email_templates( $settings ) {
-
 			if ( empty( $settings['um_email_template'] ) ) {
 				return $settings;
 			}
@@ -3438,16 +3769,17 @@ Use Only Cookies:         			<?php echo ini_get( 'session.use_only_cookies' ) ? 
 			$content = wp_kses_post( stripslashes( $settings[ $template ] ) );
 
 			$theme_template_path = UM()->mail()->get_template_file( 'theme', $template );
-
 			if ( ! file_exists( $theme_template_path ) ) {
 				UM()->mail()->copy_email_template( $template );
 			}
 
-			$fp = fopen( $theme_template_path, "w" );
-			$result = fputs( $fp, $content );
-			fclose( $fp );
+			if ( file_exists( $theme_template_path ) ) {
+				$fp = fopen( $theme_template_path, "w" );
+				$result = fputs( $fp, $content );
+				fclose( $fp );
+			}
 
-			if ( $result !== false ) {
+			if ( isset( $result ) && $result !== false ) {
 				unset( $settings['um_email_template'] );
 				unset( $settings[ $template ] );
 			}

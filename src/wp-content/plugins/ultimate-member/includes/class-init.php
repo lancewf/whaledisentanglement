@@ -47,7 +47,7 @@ if ( ! class_exists( 'UM' ) ) {
 		/**
 		 * @var UM the single instance of the class
 		 */
-		protected static $instance = null;
+		protected static $instance;
 
 
 		/**
@@ -69,8 +69,12 @@ if ( ! class_exists( 'UM' ) ) {
 		 *
 		 * @var
 		 */
-		public $is_permalinks;
+		public $is_permalinks = false;
 
+		/**
+		 * @var null|string
+		 */
+		public $honeypot = null;
 
 		/**
 		 * Main UM Instance
@@ -82,7 +86,7 @@ if ( ! class_exists( 'UM' ) ) {
 		 * @see UM()
 		 * @return UM - Main instance
 		 */
-		static public function instance() {
+		public static function instance() {
 			if ( is_null( self::$instance ) ) {
 				self::$instance = new self();
 				self::$instance->_um_construct();
@@ -198,7 +202,7 @@ if ( ! class_exists( 'UM' ) ) {
 				$this->honeypot = 'um_request';
 
 				// textdomain loading
-				$this->localize();
+				add_action( 'init', array( &$this, 'localize' ), 0 );
 
 				// include UM classes
 				$this->includes();
@@ -234,8 +238,9 @@ if ( ! class_exists( 'UM' ) ) {
 		 *
 		 * 'ultimate-member' by default
 		 */
-		function localize() {
-			$language_locale = ( get_locale() != '' ) ? get_locale() : 'en_US';
+		public function localize() {
+			// The function `get_user_locale()` will return `get_locale()` result by default if user or its locale is empty.
+			$language_locale = get_user_locale();
 
 			/**
 			 * UM hook
@@ -306,6 +311,10 @@ if ( ! class_exists( 'UM' ) ) {
 			 */
 			$language_file = apply_filters( 'um_language_file', $language_file );
 
+			// Unload textdomain if it has already loaded.
+			if ( is_textdomain_loaded( $language_domain ) ) {
+				unload_textdomain( $language_domain, true );
+			}
 			load_textdomain( $language_domain, $language_file );
 		}
 
@@ -518,8 +527,10 @@ if ( ! class_exists( 'UM' ) ) {
 			}
 
 			//run setup
-			$this->common()->create_post_types();
+			$this->common()->cpt()->create_post_types();
 			$this->setup()->run_setup();
+
+			$this->cron()->schedule_events();
 		}
 
 
@@ -540,10 +551,11 @@ if ( ! class_exists( 'UM' ) ) {
 		 */
 		public function includes() {
 
-			$this->common();
+			$this->common()->includes();
 			$this->access();
 
 			if ( $this->is_request( 'ajax' ) ) {
+				$this->ajax()->includes();
 				$this->admin();
 				$this->ajax_init();
 				$this->admin_ajax_hooks();
@@ -556,6 +568,7 @@ if ( ! class_exists( 'UM' ) ) {
 				$this->plugin_updater();
 				$this->theme_updater();
 			} elseif ( $this->is_request( 'admin' ) ) {
+				$this->admin()->includes();
 				$this->admin();
 				$this->admin_menu();
 				$this->admin_upgrade();
@@ -563,7 +576,6 @@ if ( ! class_exists( 'UM' ) ) {
 				$this->columns();
 				$this->admin_enqueue();
 				$this->metabox();
-				$this->admin()->notices();
 				$this->users();
 				$this->dragdrop();
 				$this->admin_gdpr();
@@ -571,6 +583,7 @@ if ( ! class_exists( 'UM' ) ) {
 				$this->plugin_updater();
 				$this->theme_updater();
 			} elseif ( $this->is_request( 'frontend' ) ) {
+				$this->frontend()->includes();
 				$this->enqueue();
 				$this->account();
 				$this->password();
@@ -597,6 +610,8 @@ if ( ! class_exists( 'UM' ) ) {
 			$this->external_integrations();
 			$this->gdpr();
 			$this->member_directory();
+			$this->blocks();
+			$this->secure();
 
 			//if multisite networks active
 			if ( is_multisite() ) {
@@ -625,6 +640,19 @@ if ( ! class_exists( 'UM' ) ) {
 			return $this->classes['member_directory'];
 		}
 
+
+		/**
+		 * @since 2.6.1
+		 *
+		 * @return um\core\Blocks()
+		 */
+		public function blocks() {
+			if ( empty( $this->classes['blocks'] ) ) {
+				$this->classes['blocks'] = new um\core\Blocks();
+			}
+
+			return $this->classes['blocks'];
+		}
 
 		/**
 		 * Get extension API
@@ -664,19 +692,43 @@ if ( ! class_exists( 'UM' ) ) {
 			return $this->classes[ $key ];
 		}
 
+		/**
+		 * @since 2.6.8
+		 *
+		 * @return um\ajax\Init
+		 */
+		public function ajax() {
+			if ( empty( $this->classes['um\ajax\init'] ) ) {
+				$this->classes['um\ajax\init'] = new um\ajax\Init();
+			}
+
+			return $this->classes['um\ajax\init'];
+		}
 
 		/**
 		 * @since 2.0
+		 * @since 2.6.8 changed namespace and class content.
 		 *
-		 * @return um\core\Common()
+		 * @return um\common\Init
 		 */
-		function common() {
-			if ( empty( $this->classes['common'] ) ) {
-				$this->classes['common'] = new um\core\Common();
+		public function common() {
+			if ( empty( $this->classes['um\common\init'] ) ) {
+				$this->classes['um\common\init'] = new um\common\Init();
 			}
-			return $this->classes['common'];
+			return $this->classes['um\common\init'];
 		}
 
+		/**
+		 * @since 2.6.8
+		 *
+		 * @return um\frontend\Init
+		 */
+		public function frontend() {
+			if ( empty( $this->classes['um\frontend\init'] ) ) {
+				$this->classes['um\frontend\init'] = new um\frontend\Init();
+			}
+			return $this->classes['um\frontend\init'];
+		}
 
 		/**
 		 * @since 2.0
@@ -736,7 +788,6 @@ if ( ! class_exists( 'UM' ) ) {
 			new um\core\AJAX_Common();
 		}
 
-
 		/**
 		 * @since 2.0.30
 		 */
@@ -751,9 +802,9 @@ if ( ! class_exists( 'UM' ) ) {
 		/**
 		 * @since 2.0
 		 *
-		 * @return um\admin\Admin()
+		 * @return um\admin\Admin
 		 */
-		function admin() {
+		public function admin() {
 			if ( empty( $this->classes['admin'] ) ) {
 				$this->classes['admin'] = new um\admin\Admin();
 			}
@@ -1292,7 +1343,7 @@ if ( ! class_exists( 'UM' ) ) {
 			return $this->classes['files'];
 		}
 
-		
+
 		/**
 		 * @since 2.0.21
 		 *

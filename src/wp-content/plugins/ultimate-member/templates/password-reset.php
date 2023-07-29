@@ -1,4 +1,18 @@
-<?php if ( ! defined( 'ABSPATH' ) ) {
+<?php
+/**
+ * Template for the password reset
+ *
+ * This template can be overridden by copying it to yourtheme/ultimate-member/templates/password-reset.php
+ *
+ * Call: function ultimatemember_password()
+ *
+ * @version 2.6.1
+ *
+ * @var string $mode
+ * @var int    $form_id
+ * @var array  $args
+ */
+if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 } ?>
 
@@ -10,6 +24,14 @@
 					<div class="um-field-block">
 						<div style="text-align:center;">
 							<?php esc_html_e( 'If an account matching the provided details exists, we will send a password reset link. Please check your inbox.', 'ultimate-member' ); ?>
+						</div>
+					</div>
+				</div>
+			<?php } elseif ( isset( $_GET['updated'] ) && 'password_changed' === sanitize_key( $_GET['updated'] ) ) { ?>
+				<div class="um-field um-field-block um-field-type_block">
+					<div class="um-field-block">
+						<div style="text-align:center;">
+							<?php esc_html_e( 'You have successfully changed password.', 'ultimate-member' ); ?>
 						</div>
 					</div>
 				</div>
@@ -93,7 +115,7 @@
 				<div class="um-col-alt um-col-alt-b">
 
 					<div class="um-center">
-						<input type="submit" value="<?php esc_attr_e( 'Reset my password', 'ultimate-member' ); ?>" class="um-button" id="um-submit-btn" />
+						<input type="submit" value="<?php esc_attr_e( 'Reset password', 'ultimate-member' ); ?>" class="um-button" id="um-submit-btn" />
 					</div>
 
 					<div class="um-clear"></div>

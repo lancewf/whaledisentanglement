@@ -1,4 +1,21 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
+<?php
+/**
+ * Template for the password change
+ *
+ * This template can be overridden by copying it to yourtheme/ultimate-member/templates/password-change.php
+ *
+ * Call: function ultimatemember_password()
+ *
+ * @version 2.6.1
+ *
+ * @var string $mode
+ * @var string $rp_key
+ * @var int    $form_id
+ * @var array  $args
+ */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+} ?>
 
 <div class="um <?php echo esc_attr( $this->get_class( $mode ) ); ?> um-<?php echo esc_attr( $form_id ); ?>">
 
@@ -6,7 +23,7 @@
 
 		<form method="post" action="">
 			<input type="hidden" name="_um_password_change" id="_um_password_change" value="1" />
-			<input type="hidden" name="user_id" id="user_id" value="<?php echo esc_attr( $args['user_id'] ); ?>" />
+			<input type="hidden" name="login" value="<?php echo esc_attr( $args['login'] ); ?>" />
 			<input type="hidden" name="rp_key" value="<?php echo esc_attr( $rp_key ); ?>" />
 
 			<?php
@@ -44,7 +61,7 @@
 			<div class="um-col-alt um-col-alt-b">
 
 				<div class="um-center">
-					<input type="submit" value="<?php esc_attr_e( 'Change my password', 'ultimate-member' ); ?>" class="um-button" id="um-submit-btn" />
+					<input type="submit" value="<?php esc_attr_e( 'Change password', 'ultimate-member' ); ?>" class="um-button" id="um-submit-btn" />
 				</div>
 
 				<div class="um-clear"></div>

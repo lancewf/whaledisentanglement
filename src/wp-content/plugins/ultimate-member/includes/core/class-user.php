@@ -22,34 +22,87 @@ if ( ! class_exists( 'um\core\User' ) ) {
 		 */
 		public $previous_data = null;
 
+		/**
+		 * @var int
+		 */
+		public $id = 0;
+
+		/**
+		 * @var null
+		 */
+		public $usermeta = null;
+
+		/**
+		 * @var null
+		 */
+		public $data = null;
+
+		/**
+		 * @var null
+		 */
+		public $profile = null;
+
+		/**
+		 * @var null
+		 */
+		public $cannot_edit = null;
+
+		/**
+		 * @var null
+		 */
+		public $deleted_user_id = null;
+
+		/**
+		 * @var array|string[]
+		 */
+		public $banned_keys = array();
+
+		/**
+		 * @var bool
+		 */
+		public $preview = false;
+
+		/**
+		 * @var bool
+		 */
+		public $send_mail_on_delete = true;
+
+		/**
+		 * A list of keys that should never be in wp_usermeta.
+		 * @var array|string[]
+		 */
+		public $update_user_keys = array();
+
+		/**
+		 * @var null
+		 */
+		public $target_id = null;
+
+		public $updating_process = false;
 
 		/**
 		 * User constructor.
 		 */
-		function __construct() {
-
-			$this->id = 0;
-			$this->usermeta = null;
-			$this->data = null;
-			$this->profile = null;
-			$this->cannot_edit = null;
-			$this->password_reset_key = null;
-
+		public function __construct() {
 			global $wpdb;
 
 			$this->banned_keys = array(
-				'metabox','postbox','meta-box',
-				'dismissed_wp_pointers', 'session_tokens',
-				'screen_layout', 'wp_user-', 'dismissed',
-				'cap_key', $wpdb->get_blog_prefix(). 'capabilities',
-				'managenav', 'nav_menu', 'user_activation_key',
-				'level_', $wpdb->get_blog_prefix() . 'user_level'
+				'metabox',
+				'postbox',
+				'meta-box',
+				'dismissed_wp_pointers',
+				'session_tokens',
+				'screen_layout',
+				$wpdb->get_blog_prefix() . 'user-',
+				'dismissed',
+				'cap_key',
+				$wpdb->get_blog_prefix() . 'capabilities',
+				'managenav',
+				'nav_menu',
+				'user_activation_key',
+				'level_',
+				$wpdb->get_blog_prefix() . 'user_level',
 			);
-
-			add_action( 'init',  array( &$this, 'set' ), 1 );
-
-			$this->preview = false;
-			$this->send_mail_on_delete = true;
 
 			// a list of keys that should never be in wp_usermeta
 			$this->update_user_keys = array(
@@ -61,13 +114,10 @@ if ( ! class_exists( 'um\core\User' ) ) {
 				'role',
 			);
 
-			$this->target_id = null;
+			add_action( 'init', array( &$this, 'set' ), 1 );
 
 			// When the cache should be cleared
-			add_action( 'um_delete_user_hook', array( &$this, 'remove_cached_queue' ) );
 			add_action( 'um_delete_user', array( &$this, 'remove_cache' ), 10, 1 );
-
-			add_action( 'um_after_user_status_is_changed_hook', array( &$this, 'remove_cached_queue' ) );
 
 			// When user cache should be cleared
 			add_action( 'um_after_user_updated', array( &$this, 'remove_cache' ) );
@@ -91,7 +141,6 @@ if ( ! class_exists( 'um\core\User' ) ) {
 			add_action( 'user_register', array( &$this, 'user_register_via_admin' ), 10, 1 );
 			add_action( 'user_register', array( &$this, 'set_gravatar' ), 11, 1 );
 
-
 			if ( is_multisite() ) {
 				add_action( 'added_existing_user', array( &$this, 'add_um_role_existing_user' ), 10, 2 );
 				add_action( 'wpmu_activate_user', array( &$this, 'add_um_role_wpmu_new_user' ), 10, 1 );
@@ -105,11 +154,263 @@ if ( ! class_exists( 'um\core\User' ) ) {
 				add_action( 'delete_user', array( &$this, 'delete_user_handler' ), 10, 1 );
 			}
 
-
 			add_action( 'updated_user_meta', array( &$this, 'on_update_usermeta' ), 10, 4 );
 			add_action( 'added_user_meta', array( &$this, 'on_update_usermeta' ), 10, 4 );
 
 			add_action( 'deleted_user_meta', array( &$this, 'on_delete_usermeta' ), 10, 4 );
+
+			add_action( 'update_user_meta', array( &$this, 'flush_um_count_users_transient_update' ), 10, 4 );
+			add_action( 'added_user_meta', array( &$this, 'flush_um_count_users_transient_add' ), 10, 4 );
+			add_action( 'delete_user_meta', array( &$this, 'flush_um_count_users_transient_delete' ), 10, 4 );
+
+			add_action( 'update_user_metadata', array( &$this, 'avoid_banned_keys' ), 10, 3 );
+		}
+
+		/**
+		 * It validates the meta_key for wp_usermeta table.
+		 * Avoid to handle `meta_key` by the UM Forms if it contains $this->banned_keys inside.
+		 *
+		 * @since 2.6.5
+		 *
+		 * @param string $meta_key Usermeta key.
+		 * @return bool
+		 */
+		public function is_metakey_banned( $meta_key, $context = '' ) {
+			$is_banned = false;
+			foreach ( $this->banned_keys as $ban ) {
+				if ( is_numeric( $meta_key ) || false !== stripos( $meta_key, $ban ) || false !== stripos( remove_accents( $meta_key ), $ban ) ) {
+					$is_banned = true;
+					break;
+				}
+			}
+
+			if ( ! $is_banned && 'submission' === $context && ! in_array( $meta_key, UM()->form()->usermeta_whitelist, true ) ) {
+				$is_banned = true;
+			}
+
+			return $is_banned;
+		}
+
+		/**
+		 * Low-level checking to avoid updating banned user metakeys while UM Forms submission.
+		 *
+		 * @since 2.6.4
+		 *
+		 * @param null|bool $check     Whether to allow updating metadata for the given type.
+		 * @param int       $object_id ID of the object metadata is for.
+		 * @param string    $meta_key  Metadata key.
+		 *
+		 * @return null|bool
+		 */
+		public function avoid_banned_keys( $check, $object_id, $meta_key ) {
+			if ( false === $this->updating_process ) {
+				return $check;
+			}
+
+			if ( $this->is_metakey_banned( $meta_key, 'submission' ) ) {
+				$check = false;
+			}
+
+			return $check;
+		}
+
+		/**
+		 * @param $meta_ids
+		 * @param $object_id
+		 * @param $meta_key
+		 * @param $_meta_value
+		 */
+		public function flush_um_count_users_transient_update( $meta_ids, $object_id, $meta_key, $_meta_value ) {
+			if ( 'account_status' !== $meta_key ) {
+				return;
+			}
+
+			// related to the User role > Registration Options Metabox > Registration status 2nd and 3rd option
+			if ( in_array( $_meta_value, array( 'checkmail', 'pending' ), true ) ) {
+				return;
+			}
+
+			$pending_statuses = array(
+				'awaiting_email_confirmation',
+				'awaiting_admin_review',
+			);
+
+			$old = get_user_meta( $object_id, $meta_key, true );
+
+			if ( $old === $_meta_value ) {
+				return;
+			}
+
+			// related to the User role > Registration Options Metabox > Registration status 2nd and 3rd option
+			if ( ! in_array( $old, array( 'checkmail', 'pending' ), true ) ) {
+				// deduct old transient count
+				$count = get_transient( "um_count_users_{$old}" );
+				if ( false !== $count ) {
+					if ( ! is_numeric( $count ) ) {
+						delete_transient( "um_count_users_{$old}" );
+					} else {
+						if ( 0 < $count ) {
+							$count--;
+						} else {
+							$count = 0;
+						}
+						set_transient( "um_count_users_{$old}", $count );
+					}
+				}
+
+				if ( in_array( $old, $pending_statuses, true ) && ! in_array( $_meta_value, $pending_statuses, true ) ) {
+					// deduct old transient count
+					$count = get_transient( 'um_count_users_pending_dot' );
+					if ( false !== $count ) {
+						if ( ! is_numeric( $count ) ) {
+							delete_transient( 'um_count_users_pending_dot' );
+						} else {
+							if ( 0 < $count ) {
+								$count--;
+							} else {
+								$count = 0;
+							}
+							set_transient( 'um_count_users_pending_dot', $count );
+						}
+					}
+				}
+			}
+
+			// add new transient count
+			$count = get_transient( "um_count_users_{$_meta_value}" );
+			if ( false !== $count ) {
+				if ( is_numeric( $count ) ) {
+					$count++;
+				} else {
+					$count = 1;
+				}
+			} else {
+				$count = 1;
+			}
+			set_transient( "um_count_users_{$_meta_value}", $count );
+
+			if ( in_array( $_meta_value, $pending_statuses, true ) && ! in_array( $old, $pending_statuses, true ) ) {
+				// add new transient count
+				$count = get_transient( 'um_count_users_pending_dot' );
+				if ( false !== $count ) {
+					if ( is_numeric( $count ) ) {
+						$count++;
+					} else {
+						$count = 1;
+					}
+				} else {
+					$count = 1;
+				}
+				set_transient( 'um_count_users_pending_dot', $count );
+			}
+		}
+
+
+		/**
+		 * @param $meta_ids
+		 * @param $object_id
+		 * @param $meta_key
+		 * @param $_meta_value
+		 */
+		public function flush_um_count_users_transient_add( $meta_ids, $object_id, $meta_key, $_meta_value ) {
+			if ( 'account_status' !== $meta_key ) {
+				return;
+			}
+
+			// related to the User role > Registration Options Metabox > Registration status 2nd and 3rd option
+			if ( in_array( $_meta_value, array( 'checkmail', 'pending' ), true ) ) {
+				return;
+			}
+
+			$pending_statuses = array(
+				'awaiting_email_confirmation',
+				'awaiting_admin_review',
+			);
+
+			// add new transient count
+			$count = get_transient( "um_count_users_{$_meta_value}" );
+			if ( false !== $count ) {
+				if ( is_numeric( $count ) ) {
+					$count++;
+				} else {
+					$count = 1;
+				}
+			} else {
+				$count = 1;
+			}
+			set_transient( "um_count_users_{$_meta_value}", $count );
+
+			if ( in_array( $_meta_value, $pending_statuses, true ) ) {
+				// add new transient count
+				$pending_count = get_transient( 'um_count_users_pending_dot' );
+				if ( false !== $pending_count ) {
+					if ( is_numeric( $pending_count ) ) {
+						$pending_count++;
+					} else {
+						$pending_count = 1;
+					}
+				} else {
+					$pending_count = 1;
+				}
+				set_transient( 'um_count_users_pending_dot', $pending_count );
+			}
+		}
+
+
+		/**
+		 * @param $meta_ids
+		 * @param $object_id
+		 * @param $meta_key
+		 * @param $_meta_value
+		 */
+		public function flush_um_count_users_transient_delete( $meta_ids, $object_id, $meta_key, $_meta_value ) {
+			if ( 'account_status' !== $meta_key ) {
+				return;
+			}
+
+			$value = ( '' !== $_meta_value ) ? $_meta_value : get_user_meta( $object_id, $meta_key, true );
+
+			// related to the User role > Registration Options Metabox > Registration status 2nd and 3rd option
+			if ( in_array( $value, array( 'checkmail', 'pending' ), true ) ) {
+				return;
+			}
+
+			$pending_statuses = array(
+				'awaiting_email_confirmation',
+				'awaiting_admin_review',
+			);
+
+			// deduct old transient count
+			$count = get_transient( "um_count_users_{$value}" );
+			if ( false !== $count ) {
+				if ( ! is_numeric( $count ) ) {
+					delete_transient( "um_count_users_{$value}" );
+				} else {
+					if ( 0 < $count ) {
+						$count--;
+					} else {
+						$count = 0;
+					}
+					set_transient( "um_count_users_{$value}", $count );
+				}
+			}
+
+			if ( in_array( $value, $pending_statuses, true ) ) {
+				// deduct old transient count
+				$count = get_transient( 'um_count_users_pending_dot' );
+				if ( false !== $count ) {
+					if ( ! is_numeric( $count ) ) {
+						delete_transient( 'um_count_users_pending_dot' );
+					} else {
+						if ( 0 < $count ) {
+							$count--;
+						} else {
+							$count = 0;
+						}
+						set_transient( 'um_count_users_pending_dot', $count );
+					}
+				}
+			}
 		}
 
 
@@ -122,6 +423,10 @@ if ( ! class_exists( 'um\core\User' ) ) {
 		 * @param mixed $_meta_value
 		 */
 		function on_delete_usermeta( $meta_ids, $object_id, $meta_key, $_meta_value ) {
+			if ( $this->deleted_user_id ) {
+				return;
+			}
+
 			$metakeys = array( 'account_status', 'hide_in_members', 'synced_gravatar_hashed_id', 'synced_profile_photo', 'profile_photo', 'cover_photo', '_um_verified' );
 			if ( ! in_array( $meta_key, $metakeys ) ) {
 				return;
@@ -221,7 +526,7 @@ if ( ! class_exists( 'um\core\User' ) ) {
 					$hide_in_members = UM()->member_directory()->get_hide_in_members_default();
 					if ( ! empty( $_meta_value ) ) {
 						if ( $_meta_value == 'Yes' || $_meta_value == __( 'Yes', 'ultimate-member' ) ||
-						     array_intersect( array( 'Yes', __( 'Yes', 'ultimate-member' ) ), $_meta_value ) ) {
+							 array_intersect( array( 'Yes', __( 'Yes', 'ultimate-member' ) ), $_meta_value ) ) {
 							$hide_in_members = true;
 						} else {
 							$hide_in_members = false;
@@ -263,6 +568,7 @@ if ( ! class_exists( 'um\core\User' ) ) {
 		function delete_user_handler( $user_id ) {
 			um_fetch_user( $user_id );
 
+			$this->deleted_user_id = $user_id;
 			/**
 			 * UM hook
 			 *
@@ -318,6 +624,9 @@ if ( ! class_exists( 'um\core\User' ) ) {
 			// remove uploads
 			UM()->files()->remove_dir( UM()->files()->upload_temp );
 			UM()->files()->remove_dir( UM()->uploader()->get_upload_base_dir() . um_user( 'ID' ) . DIRECTORY_SEPARATOR );
+
+			delete_transient( 'um_count_users_unassigned' );
+			delete_transient( 'um_count_users_pending_dot' );
 		}
 
 
@@ -382,60 +691,6 @@ if ( ! class_exists( 'um\core\User' ) ) {
 			}
 
 			$this->remove_cache( $user_id );
-		}
-
-
-		/**
-		 * Get pending users (in queue)
-		 */
-		function get_pending_users_count() {
-
-			$cached_users_queue = get_option( 'um_cached_users_queue' );
-			if ( $cached_users_queue > 0 && ! isset( $_REQUEST['delete_count'] ) ) {
-				return $cached_users_queue;
-			}
-
-			$args = array( 'fields' => 'ID', 'number' => 1 );
-			$args['meta_query']['relation'] = 'OR';
-			$args['meta_query'][] = array(
-				'key'       => 'account_status',
-				'value'     => 'awaiting_email_confirmation',
-				'compare'   => '='
-			);
-			$args['meta_query'][] = array(
-				'key'       => 'account_status',
-				'value'     => 'awaiting_admin_review',
-				'compare'   => '='
-			);
-
-			/**
-			 * UM hook
-			 *
-			 * @type filter
-			 * @title um_admin_pending_queue_filter
-			 * @description Change user query arguments when get pending users
-			 * @input_vars
-			 * [{"var":"$args","type":"array","desc":"WP_Users query arguments"}]
-			 * @change_log
-			 * ["Since: 2.0"]
-			 * @usage
-			 * <?php add_filter( 'um_admin_pending_queue_filter', 'function_name', 10, 1 ); ?>
-			 * @example
-			 * <?php
-			 * add_filter( 'um_admin_pending_queue_filter', 'my_admin_pending_queue', 10, 1 );
-			 * function my_admin_pending_queue( $args ) {
-			 *     // your code here
-			 *     return $args;
-			 * }
-			 * ?>
-			 */
-			$args = apply_filters( 'um_admin_pending_queue_filter', $args );
-			$users = new \WP_User_Query( $args );
-
-			delete_option( 'um_cached_users_queue' );
-			add_option( 'um_cached_users_queue', $users->get_total(), '', 'no' );
-
-			return $users->get_total();
 		}
 
 
@@ -591,7 +846,6 @@ if ( ! class_exists( 'um\core\User' ) ) {
 		 * @param $user_id
 		 */
 		function user_register_via_admin( $user_id ) {
-
 			if ( empty( $user_id ) ) {
 				return;
 			}
@@ -604,30 +858,11 @@ if ( ! class_exists( 'um\core\User' ) ) {
 					UM()->user()->profile['role'] = sanitize_key( $_POST['um-role'] );
 					UM()->user()->update_usermeta_info( 'role' );
 				}
-
-				/**
-				 * UM hook
-				 *
-				 * @type action
-				 * @title um_user_register
-				 * @description Action on user registration
-				 * @input_vars
-				 * [{"var":"$user_id","type":"int","desc":"User ID"},
-				 * {"var":"$submitted","type":"array","desc":"Registration form submitted"}]
-				 * @change_log
-				 * ["Since: 2.0"]
-				 * @usage add_action( 'um_user_register', 'function_name', 10, 2 );
-				 * @example
-				 * <?php
-				 * add_action( 'um_user_register', 'my_user_register', 10, 2 );
-				 * function my_user_register( $user_id, $submitted ) {
-				 *     // your code here
-				 * }
-				 * ?>
-				 */
-				do_action( 'um_user_register', $user_id, $_POST );
+				/** This action is documented in ultimate-member/includes/common/um-actions-register.php */
+				do_action( 'um_user_register', $user_id, $_POST, null );
 			}
 
+			delete_transient( 'um_count_users_unassigned' );
 		}
 
 
@@ -798,14 +1033,6 @@ if ( ! class_exists( 'um\core\User' ) ) {
 			<?php $content .= ob_get_clean();
 
 			return $content;
-		}
-
-
-		/**
-		 * Remove cached queue from Users backend
-		 */
-		function remove_cached_queue() {
-			delete_option( 'um_cached_users_queue' );
 		}
 
 
@@ -1047,11 +1274,11 @@ if ( ! class_exists( 'um\core\User' ) ) {
 					$role_meta = apply_filters( 'um_user_permissions_filter', $role_meta, $this->id );
 
 					/*$role_meta = array_map( function( $key, $item ) {
-                        if ( strpos( $key, '_um_' ) === 0 )
-                            $key = str_replace( '_um_', '', $key );
+						if ( strpos( $key, '_um_' ) === 0 )
+							$key = str_replace( '_um_', '', $key );
 
-                        return array( $key => $item );
-                    }, array_keys( $role_meta ), $role_meta );*/
+						return array( $key => $item );
+					}, array_keys( $role_meta ), $role_meta );*/
 
 					$this->profile = array_merge( $this->profile, (array)$role_meta );
 
@@ -1079,20 +1306,16 @@ if ( ! class_exists( 'um\core\User' ) ) {
 			$this->set(0, $clean);
 		}
 
-
 		/**
-		 * Clean user profile
+		 * Clean user profile before set.
 		 */
-		function clean() {
+		private function clean() {
 			foreach ( $this->profile as $key => $value ) {
-				foreach ( $this->banned_keys as $ban ) {
-					if ( strstr( $key, $ban ) || is_numeric( $key ) ) {
-						unset( $this->profile[ $key ] );
-					}
+				if ( $this->is_metakey_banned( $key ) ) {
+					unset( $this->profile[ $key ] );
 				}
 			}
 		}
-
 
 		/**
 		 * This method lets you auto sign-in a user to your site.
@@ -1124,15 +1347,14 @@ if ( ! class_exists( 'um\core\User' ) ) {
 
 		}
 
-
 		/**
 		 * Set user's registration details
 		 *
 		 * @param array $submitted
 		 * @param array $args
+		 * @param array $form_data
 		 */
-		function set_registration_details( $submitted, $args ) {
-
+		public function set_registration_details( $submitted, $args, $form_data ) {
 			if ( isset( $submitted['user_pass'] ) ) {
 				unset( $submitted['user_pass'] );
 			}
@@ -1148,7 +1370,7 @@ if ( ! class_exists( 'um\core\User' ) ) {
 			//remove all password field values from submitted details
 			$password_fields = array();
 			foreach ( $submitted as $k => $v ) {
-				if ( UM()->fields()->get_field_type( $k ) == 'password' ) {
+				if ( 'password' === UM()->fields()->get_field_type( $k ) ) {
 					$password_fields[] = $k;
 					$password_fields[] = 'confirm_' . $k;
 				}
@@ -1158,80 +1380,67 @@ if ( ! class_exists( 'um\core\User' ) ) {
 				unset( $submitted[ $pw_field ] );
 			}
 
-
 			/**
-			 * UM hook
+			 * Filters submitted data before save usermeta "submitted" on registration process.
 			 *
-			 * @type filter
-			 * @title um_before_save_filter_submitted
-			 * @description Change submitted data before save usermeta "submitted" on registration process
-			 * @input_vars
-			 * [{"var":"$submitted","type":"array","desc":"Submitted data"},
-			 * {"var":"$args","type":"array","desc":"Form Args"}]
-			 * @change_log
-			 * ["Since: 2.0"]
-			 * @usage
-			 * <?php add_filter( 'um_before_save_filter_submitted', 'function_name', 10, 2 ); ?>
-			 * @example
-			 * <?php
-			 * add_filter( 'um_before_save_filter_submitted', 'my_before_save_filter_submitted', 10, 2 );
-			 * function my_before_save_filter_submitted( $submitted, $args ) {
+			 * @param {array} $submitted           Form submitted data prepared for submitted usermeta.
+			 * @param {array} $form_submitted_data All submitted data from $_POST. Since 2.6.7.
+			 * @param {array} $form_data           Form data. Since 2.6.7.
+			 *
+			 * @return {array} Form submitted data prepared for submitted usermeta.
+			 *
+			 * @since 2.0
+			 * @hook um_before_save_filter_submitted
+			 *
+			 * @example <caption>Change submitted data before save usermeta "submitted" on registration process.</caption>
+			 * function my_before_save_filter_submitted( $submitted, $form_submitted_data, $form_data ) {
 			 *     // your code here
 			 *     return $submitted;
 			 * }
-			 * ?>
+			 * add_filter( 'um_before_save_filter_submitted', 'my_before_save_filter_submitted', 10, 3 );
 			 */
-			$submitted = apply_filters( 'um_before_save_filter_submitted', $submitted, $args );
+			$submitted = apply_filters( 'um_before_save_filter_submitted', $submitted, $args, $form_data );
 
 			/**
-			 * UM hook
+			 * Fires before save registration details to the user.
 			 *
-			 * @type action
-			 * @title um_before_save_registration_details
-			 * @description Action on user registration before save details
-			 * @input_vars
-			 * [{"var":"$user_id","type":"int","desc":"User ID"},
-			 * {"var":"$submitted","type":"array","desc":"Registration form submitted"}]
-			 * @change_log
-			 * ["Since: 2.0"]
-			 * @usage add_action( 'um_before_save_registration_details', 'function_name', 10, 2 );
-			 * @example
-			 * <?php
-			 * add_action( 'um_before_save_registration_details', 'my_before_save_registration_details', 10, 2 );
-			 * function my_before_save_registration_details( $user_id, $submitted ) {
+			 * @since 1.3.x
+			 * @hook um_before_save_registration_details
+			 *
+			 * @param {int}   $user_id        User ID.
+			 * @param {array} $submitted_data $_POST Submission array.
+			 * @param {array} $form_data      Form data. Since 2.6.8.
+			 *
+			 * @example <caption>Make any custom action before save registration details to the user.</caption>
+			 * function my_before_save_registration_details( $user_id, $submitted_data, $form_data ) {
 			 *     // your code here
 			 * }
-			 * ?>
+			 * add_action( 'um_before_save_registration_details', 'my_before_save_registration_details', 10, 3 );
 			 */
-			do_action( 'um_before_save_registration_details', $this->id, $submitted );
+			do_action( 'um_before_save_registration_details', $this->id, $submitted, $form_data );
 
 			update_user_meta( $this->id, 'submitted', $submitted );
 
 			$this->update_profile( $submitted );
+
 			/**
-			 * UM hook
+			 * Fires after save registration details to the user.
 			 *
-			 * @type action
-			 * @title um_after_save_registration_details
-			 * @description Action on user registration after save details
-			 * @input_vars
-			 * [{"var":"$user_id","type":"int","desc":"User ID"},
-			 * {"var":"$submitted","type":"array","desc":"Registration form submitted"}]
-			 * @change_log
-			 * ["Since: 2.0"]
-			 * @usage add_action( 'um_after_save_registration_details', 'function_name', 10, 2 );
-			 * @example
-			 * <?php
-			 * add_action( 'um_after_save_registration_details', 'my_after_save_registration_details', 10, 2 );
-			 * function my_after_save_registration_details( $user_id, $submitted ) {
+			 * @since 1.3.x
+			 * @hook um_after_save_registration_details
+			 *
+			 * @param {int}   $user_id        User ID.
+			 * @param {array} $submitted_data $_POST Submission array.
+			 * @param {array} $form_data      UM form data. Since 2.6.7
+			 *
+			 * @example <caption>Make any custom action after save registration details to the user.</caption>
+			 * function my_after_save_registration_details( $user_id, $submitted_data, $form_data ) {
 			 *     // your code here
 			 * }
-			 * ?>
+			 * add_action( 'um_after_save_registration_details', 'my_after_save_registration_details', 10, 3 );
 			 */
-			do_action( 'um_after_save_registration_details', $this->id, $submitted );
-
+			do_action( 'um_after_save_registration_details', $this->id, $submitted, $form_data );
 		}
-
 
 		/**
 		 * Set last login for new registered users
@@ -1378,11 +1587,7 @@ if ( ! class_exists( 'um\core\User' ) ) {
 		 * @return string|\WP_Error
 		 */
 		function maybe_generate_password_reset_key( $userdata ) {
-			if ( empty( $this->password_reset_key ) ) {
-				$this->password_reset_key = get_password_reset_key( $userdata );
-			}
-
-			return $this->password_reset_key ;
+			return get_password_reset_key( $userdata );
 		}
 
 
@@ -1397,15 +1602,25 @@ if ( ! class_exists( 'um\core\User' ) ) {
 			add_filter( 'um_template_tags_patterns_hook', array( UM()->password(), 'add_placeholder' ), 10, 1 );
 			add_filter( 'um_template_tags_replaces_hook', array( UM()->password(), 'add_replace_placeholder' ), 10, 1 );
 
-			UM()->mail()->send( um_user( 'user_email' ), 'resetpw_email' );
+			UM()->mail()->send( $userdata->user_email, 'resetpw_email' );
 		}
 
 
 		/**
 		 * Password changed email
+		 *
+		 * @param null|int $user_id
 		 */
-		function password_changed() {
+		function password_changed( $user_id = null ) {
+			if ( ! empty( $user_id ) ) {
+				um_fetch_user( $user_id );
+			}
+
 			UM()->mail()->send( um_user( 'user_email' ), 'changedpw_email' );
+
+			if ( ! empty( $user_id ) ) {
+				um_reset_user();
+			}
 		}
 
 
@@ -1482,6 +1697,11 @@ if ( ! class_exists( 'um\core\User' ) ) {
 		function email_pending() {
 			$this->assign_secretkey();
 			$this->set_status( 'awaiting_email_confirmation' );
+
+			//clear all sessions for email confirmation pending users
+			$user = \WP_Session_Tokens::get_instance( um_user( 'ID' ) );
+			$user->destroy_all();
+
 			UM()->mail()->send( um_user( 'user_email' ), 'checkmail_email' );
 		}
 
@@ -1503,6 +1723,11 @@ if ( ! class_exists( 'um\core\User' ) ) {
 		 */
 		function pending() {
 			$this->set_status( 'awaiting_admin_review' );
+
+			//clear all sessions for awaiting admin confirmation users
+			$user = \WP_Session_Tokens::get_instance( um_user( 'ID' ) );
+			$user->destroy_all();
+
 			UM()->mail()->send( um_user( 'user_email' ), 'pending_email' );
 		}
 
@@ -1525,6 +1750,11 @@ if ( ! class_exists( 'um\core\User' ) ) {
 		 */
 		function reject() {
 			$this->set_status( 'rejected' );
+
+			//clear all sessions for rejected users
+			$user = \WP_Session_Tokens::get_instance( um_user( 'ID' ) );
+			$user->destroy_all();
+
 			UM()->mail()->send( um_user( 'user_email' ), 'rejected_email' );
 		}
 
@@ -1546,6 +1776,11 @@ if ( ! class_exists( 'um\core\User' ) ) {
 		 */
 		function deactivate() {
 			$this->set_status( 'inactive' );
+
+			//clear all sessions for inactive users
+			$user = \WP_Session_Tokens::get_instance( um_user( 'ID' ) );
+			$user->destroy_all();
+
 			/**
 			 * UM hook
 			 *
@@ -1748,16 +1983,16 @@ if ( ! class_exists( 'um\core\User' ) ) {
 			}
 
 			if ( ! $profile_noindex ) {
-				$role = UM()->roles()->get_priority_user_role( $user_id );
+				$role        = UM()->roles()->get_priority_user_role( $user_id );
 				$permissions = UM()->roles()->role_data( $role );
 
-				if ( isset( $permissions['profile_noindex'] ) && (bool) $permissions['profile_noindex'] ) {
+				if ( isset( $permissions['profile_noindex'] ) && '' !== $permissions['profile_noindex'] ) {
 					// Setting "Avoid indexing profile by search engines" in [wp-admin > Ultimate Member > User Roles > Edit Role]
-					$profile_noindex = true;
+					$profile_noindex = (bool) $permissions['profile_noindex'];
 
-				} elseif ( ( ! isset( $permissions['profile_noindex'] ) || $permissions['profile_noindex'] === '' ) && (bool) UM()->options()->get( 'profile_noindex' ) ) {
+				} else {
 					// Setting "Avoid indexing profile by search engines" in [wp-admin > Ultimate Member > Settings > General > Users]
-					$profile_noindex = true;
+					$profile_noindex = (bool) UM()->options()->get( 'profile_noindex' );
 
 				}
 			}
@@ -1882,84 +2117,73 @@ if ( ! class_exists( 'um\core\User' ) ) {
 			um_deprecated_function( 'update_files', '2.1.0', '' );
 		}
 
-
 		/**
 		 * Update profile
 		 *
-		 * @param $changes
+		 * @param array  $changes
+		 * @param string $context
 		 */
-		function update_profile( $changes ) {
+		public function update_profile( $changes, $context = '' ) {
+			if ( 'account' !== $context ) {
+				$this->updating_process = true;
+			}
 
 			$args['ID'] = $this->id;
 
 			/**
-			 * UM hook
+			 * Filters the update profile changes data.
 			 *
-			 * @type filter
-			 * @title um_before_update_profile
-			 * @description Change update profile changes data
-			 * @input_vars
-			 * [{"var":"$changes","type":"array","desc":"User Profile Changes"},
-			 * {"var":"$user_id","type":"int","desc":"User ID"}]
-			 * @change_log
-			 * ["Since: 2.0"]
-			 * @usage
-			 * <?php add_filter( 'um_before_update_profile', 'function_name', 10, 2 ); ?>
-			 * @example
-			 * <?php
-			 * add_filter( 'um_before_update_profile', 'my_before_update_profile', 10, 2 );
-			 * function my_before_update_profile( $changes, $user_id ) {
-			 *     // your code here
+			 * @since 1.3.x
+			 * @hook um_before_update_profile
+			 *
+			 * @param {array} $changes User Profile Changes.
+			 * @param {int}   $user_id User ID.
+			 *
+			 * @return {array} User Profile Changes.
+			 *
+			 * @example <caption>Remove some_metakey from changes where user ID equals 12.</caption>
+			 * function my_custom_before_update_profile( $changes, $user_id ) {
+			 *     if ( 12 === $user_id ) {
+			 *         unset( $changes['{some_metakey}'];
+			 *     }
 			 *     return $changes;
 			 * }
-			 * ?>
+			 * add_filter( 'um_before_update_profile', 'my_custom_before_update_profile', 10, 2 );
 			 */
 			$changes = apply_filters( 'um_before_update_profile', $changes, $args['ID'] );
-
 			foreach ( $changes as $key => $value ) {
-				if ( in_array( $key, $this->banned_keys ) ) {
+				if ( $this->is_metakey_banned( $key, ( 'account' !== $context ) ? 'submission' : '' ) ) {
 					continue;
 				}
 
-				if ( ! in_array( $key, $this->update_user_keys ) ) {
+				if ( ! in_array( $key, $this->update_user_keys, true ) ) {
 					if ( $value === 0 ) {
 						update_user_meta( $this->id, $key, '0' );
 					} else {
 						update_user_meta( $this->id, $key, $value );
 					}
 				} else {
-					$args[ $key ] = esc_attr( $changes[ $key ] );
+					$args[ $key ] = $value;
 				}
 			}
 
+			$this->updating_process = false;
 
 			// update user
 			if ( count( $args ) > 1 ) {
-				//if isset roles argument validate role to properly for security reasons
+				// If isset roles argument validate role to properly for security reasons
 				if ( isset( $args['role'] ) ) {
 					global $wp_roles;
-					$um_roles = get_option( 'um_roles', array() );
 
-					if ( ! empty( $um_roles ) ) {
-						$role_keys = array_map( function( $item ) {
-							return 'um_' . $item;
-						}, $um_roles );
-					} else {
-						$role_keys = array();
-					}
-
-					$exclude_roles = array_diff( array_keys( $wp_roles->roles ), array_merge( $role_keys, array( 'subscriber' ) ) );
-
-					if ( in_array( $args['role'], $exclude_roles ) ) {
+					$exclude_roles = array_diff( array_keys( $wp_roles->roles ), UM()->roles()->get_editable_user_roles() );
+					if ( in_array( $args['role'], $exclude_roles, true ) ) {
 						unset( $args['role'] );
 					}
 				}
 
 				wp_update_user( $args );
 			}
-
 		}
-
 
 		/**
 		 * User exists by meta key and value
@@ -2180,6 +2404,28 @@ if ( ! class_exists( 'um\core\User' ) ) {
 		function add_activation_replace_placeholder( $replace_placeholders ) {
 			$replace_placeholders[] = um_user( 'account_activation_link' );
 			return $replace_placeholders;
+		}
+
+
+		/**
+		 * Get pending users (in queue)
+		 *
+		 * @deprecated 2.4.2
+		 */
+		function get_pending_users_count() {
+			_deprecated_function( __METHOD__, '2.4.2', 'UM()->query()->get_pending_users_count()' );
+			return UM()->query()->get_pending_users_count();
+		}
+
+
+		/**
+		 * Remove cached queue from Users backend
+		 *
+		 * @deprecated 2.4.2
+		 */
+		function remove_cached_queue() {
+			_deprecated_function( __METHOD__, '2.4.2', '' );
+			delete_option( 'um_cached_users_queue' );
 		}
 	}
 }

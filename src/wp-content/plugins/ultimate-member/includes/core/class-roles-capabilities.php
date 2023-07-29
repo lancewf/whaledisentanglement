@@ -91,40 +91,47 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 			}
 		}
 
-
 		/**
 		 * Loop through dynamic roles and add them to the $wp_roles array
 		 *
 		 * @param null|object $wp_roles
 		 * @return null
 		 */
-		function um_roles_init( $wp_roles = null ) {
+		public function um_roles_init( $wp_roles = null ) {
+			$role_keys = get_option( 'um_roles', array() );
+			$um_roles  = array_map( array( &$this, 'key_to_role_id_mapping' ), $role_keys );
 
-			//Add UM role data to WP Roles
-			foreach ( $wp_roles->roles as $roleID => $role_data ) {
-				$role_meta = get_option( "um_role_{$roleID}_meta" );
+			// Add UM role data to WP Roles.
+			foreach ( $wp_roles->roles as $role_id => $role_data ) {
+				// Skip custom UM roles meta here, because it's added below. See: "Add custom UM roles".
+				if ( in_array( $role_id, $um_roles, true ) ) {
+					continue;
+				}
 
+				$role_meta = get_option( "um_role_{$role_id}_meta" );
 				if ( ! empty( $role_meta ) ) {
-					$wp_roles->roles[ $roleID ] = array_merge( $role_data, $role_meta );
+					$wp_roles->roles[ $role_id ] = array_merge( $role_data, $role_meta );
 				}
 			}
 
-
-			//Add custom UM roles
+			// Add custom UM roles.
 			$roles = array();
-
-			$role_keys = get_option( 'um_roles', array() );
 			foreach ( $role_keys as $role_key ) {
 				$role_meta = get_option( "um_role_{$role_key}_meta" );
-				if ( $role_meta ) {
+				if ( ! empty( $role_meta ) ) {
 					$roles[ 'um_' . $role_key ] = $role_meta;
 				}
 			}
 
+			if ( empty( $roles ) ) {
+				return $wp_roles;
+			}
+
 			foreach ( $roles as $role_id => $details ) {
-				$capabilities = ! empty( $details['wp_capabilities'] ) ? array_keys( $details['wp_capabilities'] ) : array();
+				$capabilities            = ! empty( $details['wp_capabilities'] ) ? array_keys( $details['wp_capabilities'] ) : array();
 				$details['capabilities'] = array_fill_keys( array_values( $capabilities ), true );
 				unset( $details['wp_capabilities'] );
+
 				$wp_roles->roles[ $role_id ]        = $details;
 				$wp_roles->role_objects[ $role_id ] = new \WP_Role( $role_id, $details['capabilities'] );
 				$wp_roles->role_names[ $role_id ]   = $details['name'];
@@ -134,6 +141,9 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 			return $wp_roles;
 		}
 
+		public function key_to_role_id_mapping( $role_key ) {
+			return 'um_' . $role_key;
+		}
 
 		/**
 		 * Check if role is custom
@@ -141,21 +151,16 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 		 * @param $role
 		 * @return bool
 		 */
-		function is_role_custom( $role ) {
+		public function is_role_custom( $role ) {
 			// User has roles so look for a UM Role one
 			$role_keys = get_option( 'um_roles', array() );
-
 			if ( empty( $role_keys ) ) {
 				return false;
 			}
 
-			$role_keys = array_map( function( $item ) {
-				return 'um_' . $item;
-			}, $role_keys );
-
-			return in_array( $role, $role_keys );
+			$um_roles = array_map( array( &$this, 'key_to_role_id_mapping' ), $role_keys );
+			return in_array( $role, $um_roles, true );
 		}
-
 
 		/**
 		 * Return a user's main role
@@ -446,20 +451,40 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 		 * @return array
 		 */
 		function get_editable_user_roles() {
-			$default_roles = array( 'subscriber' );
+			$editable_roles = array( 'subscriber' );
 
 			// User has roles so look for a UM Role one
 			$um_roles_keys = get_option( 'um_roles', array() );
-
 			if ( ! empty( $um_roles_keys ) && is_array( $um_roles_keys ) ) {
 				$um_roles_keys = array_map( function( $item ) {
 					return 'um_' . $item;
 				}, $um_roles_keys );
 
-				return array_merge( $um_roles_keys, $default_roles );
+				$editable_roles = array_merge( $editable_roles, $um_roles_keys );
 			}
 
-			return $default_roles;
+			/**
+			 * UM hook
+			 *
+			 * @type filter
+			 * @title um_extend_editable_roles
+			 * @description Extend Editable User Roles
+			 * @input_vars
+			 * [{"var":"$editable_roles","type":"array","desc":"Editable Roles Keys"}]
+			 * @change_log
+			 * ["Since: 2.6.0"]
+			 * @usage add_filter( 'um_extend_editable_roles', 'function_name', 10, 1 );
+			 * @example
+			 * <?php
+			 * add_filter( 'um_extend_editable_roles', 'my_um_extend_editable_roles', 10, 1 );
+			 * function my_um_extend_editable_roles( $editable_roles ) {
+			 *     // your code here
+			 *     return $editable_roles;
+			 * }
+			 * ?>
+			 */
+			$editable_roles = apply_filters( 'um_extend_editable_roles', $editable_roles );
+			return $editable_roles;
 		}
 
 
@@ -567,19 +592,24 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 
 
 		/**
-		 * Get role data
+		 * Get role data.
 		 *
-		 * @param int $roleID Role ID
+		 * @param int $role_id Role ID.
+		 *
 		 * @return array
 		 */
-		function role_data( $roleID ) {
-			if ( strpos( $roleID, 'um_' ) === 0 ) {
-				$roleID = substr( $roleID, 3 );
-				$role_data = get_option( "um_role_{$roleID}_meta", array() );
+		public function role_data( $role_id ) {
+			if ( empty( $role_id ) ) {
+				return array();
+			}
+
+			if ( strpos( $role_id, 'um_' ) === 0 ) {
+				$role_id   = substr( $role_id, 3 );
+				$role_data = get_option( "um_role_{$role_id}_meta", array() );
 			}
 
 			if ( empty( $role_data ) ) {
-				$role_data = get_option( "um_role_{$roleID}_meta", array() );
+				$role_data = get_option( "um_role_{$role_id}_meta", array() );
 			}
 
 			if ( ! $role_data ) {
@@ -587,20 +617,35 @@ if ( ! class_exists( 'um\core\Roles_Capabilities' ) ) {
 			}
 
 			$temp = array();
-			foreach ( $role_data as $key=>$value ) {
+			foreach ( $role_data as $key => $value ) {
 				if ( strpos( $key, '_um_' ) === 0 ) {
-					$key = preg_replace('/_um_/', '', $key, 1);
+					$key = preg_replace( '/_um_/', '', $key, 1 );
 				}
-
-				//$key = str_replace( '_um_', '', $key, $count );
 				$temp[ $key ] = $value;
 			}
-
-			$temp = apply_filters( 'um_change_role_data', $temp, $roleID );
-
-			return $temp;
+			/**
+			 * Filters the Ultimate Member related user role data.
+			 *
+			 * @since 2.0
+			 * @hook  um_change_role_data
+			 *
+			 * @param {array}  $role_data Role data.
+			 * @param {string} $role_id   Role ID.
+			 *
+			 * @return {array} Role data.
+			 *
+			 * @example <caption>Set {some_capability_key} capability for subscriber user role.</caption>
+			 * function my_change_role_data( $role_data, $role_id ) {
+			 *     // your code here
+			 *     if ( 'subscriber' === $role_id ) {
+			 *          $role_data['{some_capability_key}'] = true;
+			 *     }
+			 *     return $role_data;
+			 * }
+			 * add_filter( 'um_change_role_data', 'my_change_role_data', 10, 2 );
+			 */
+			return apply_filters( 'um_change_role_data', $temp, $role_id );
 		}
-
 
 		/**
 		 * Query for UM roles

@@ -1,7 +1,7 @@
-<?php if ( ! defined( 'ABSPATH' ) ) {
+<?php
+if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
 
 /**
  * Validate for errors in account form
@@ -25,10 +25,10 @@ function um_submit_account_errors_hook( $args ) {
 		case 'delete': {
 			// delete account
 			if ( UM()->account()->current_password_is_required( 'delete' ) ) {
-				if ( strlen( trim( sanitize_text_field( $args['single_user_password'] ) ) ) === 0 ) {
+				if ( strlen( trim( $args['single_user_password'] ) ) === 0 ) {
 					UM()->form()->add_error( 'single_user_password', __( 'You must enter your password', 'ultimate-member' ) );
 				} else {
-					if ( ! wp_check_password( sanitize_text_field( $args['single_user_password'] ), $current_user->data->user_pass, $current_user->data->ID ) ) {
+					if ( ! wp_check_password( trim( $args['single_user_password'] ), $current_user->data->user_pass, $current_user->data->ID ) ) {
 						UM()->form()->add_error( 'single_user_password', __( 'This is not your password', 'ultimate-member' ) );
 					}
 				}
@@ -45,11 +45,11 @@ function um_submit_account_errors_hook( $args ) {
 			UM()->account()->current_tab = 'password';
 
 			if ( isset( $args['user_password'] ) ) {
-				$args['user_password'] = sanitize_text_field( $args['user_password'] );
+				$args['user_password'] = trim( $args['user_password'] );
 			}
 
 			if ( isset( $args['confirm_user_password'] ) ) {
-				$args['confirm_user_password'] = sanitize_text_field( $args['confirm_user_password'] );
+				$args['confirm_user_password'] = trim( $args['confirm_user_password'] );
 			}
 
 			if ( empty( $args['user_password'] ) ) {
@@ -59,6 +59,12 @@ function um_submit_account_errors_hook( $args ) {
 
 			if ( empty( $args['confirm_user_password'] ) ) {
 				UM()->form()->add_error( 'user_password', __( 'Password confirmation is required', 'ultimate-member' ) );
+				return;
+			}
+
+			// Check for "\" in password.
+			if ( false !== strpos( wp_unslash( $args['user_password'] ), '\\' ) ) {
+				UM()->form()->add_error( 'user_password', __( 'Passwords may not contain the character "\\".', 'ultimate-member' ) );
 				return;
 			}
 
@@ -87,12 +93,27 @@ function um_submit_account_errors_hook( $args ) {
 					$max_length = UM()->options()->get( 'password_max_chars' );
 					$max_length = ! empty( $max_length ) ? $max_length : 30;
 
-					if ( mb_strlen( $args['user_password'] ) < $min_length ) {
+					if ( is_user_logged_in() ) {
+						um_fetch_user( get_current_user_id() );
+					}
+
+					$user_login = um_user( 'user_login' );
+					$user_email = um_user( 'user_email' );
+
+					if ( mb_strlen( wp_unslash( $args['user_password'] ) ) < $min_length ) {
 						UM()->form()->add_error( 'user_password', sprintf( __( 'Your password must contain at least %d characters', 'ultimate-member' ), $min_length ) );
 					}
 
-					if ( mb_strlen( $args['user_password'] ) > $max_length ) {
+					if ( mb_strlen( wp_unslash( $args['user_password'] ) ) > $max_length ) {
 						UM()->form()->add_error( 'user_password', sprintf( __( 'Your password must contain less than %d characters', 'ultimate-member' ), $max_length ) );
+					}
+
+					if ( strpos( strtolower( $user_login ), strtolower( $args['user_password'] )  ) > -1 ) {
+						UM()->form()->add_error( 'user_password', __( 'Your password cannot contain the part of your username', 'ultimate-member' ) );
+					}
+
+					if ( strpos( strtolower( $user_email ), strtolower( $args['user_password'] )  ) > -1 ) {
+						UM()->form()->add_error( 'user_password', __( 'Your password cannot contain the part of your email address', 'ultimate-member' ) );
 					}
 
 					if ( ! UM()->validation()->strong_pass( $args['user_password'] ) ) {
@@ -122,7 +143,7 @@ function um_submit_account_errors_hook( $args ) {
 				$args['user_email'] = sanitize_email( $args['user_email'] );
 			}
 			if ( isset( $args['single_user_password'] ) ) {
-				$args['single_user_password'] = sanitize_text_field( $args['single_user_password'] );
+				$args['single_user_password'] = trim( $args['single_user_password'] );
 			}
 
 			if ( isset( $args['first_name'] ) && ( strlen( trim( $args['first_name'] ) ) === 0 && $account_name_require ) ) {
@@ -150,7 +171,7 @@ function um_submit_account_errors_hook( $args ) {
 
 			// check account password
 			if ( UM()->account()->current_password_is_required( 'general' ) ) {
-				if ( strlen( trim( $args['single_user_password'] ) ) === 0 ) {
+				if ( strlen( $args['single_user_password'] ) === 0 ) {
 					UM()->form()->add_error( 'single_user_password', __( 'You must enter your password', 'ultimate-member' ) );
 				} else {
 					if ( ! wp_check_password( $args['single_user_password'], $current_user->data->user_pass, $current_user->data->ID ) ) {
@@ -203,20 +224,20 @@ function um_submit_account_details( $args ) {
 
 	//change password account's tab
 	if ( 'password' === $current_tab && $args['user_password'] && $args['confirm_user_password'] ) {
-
-		$changes['user_pass'] = sanitize_text_field( $args['user_password'] );
-
-		$args['user_id'] = $user_id;
+		$changes['user_pass'] = trim( $args['user_password'] );
+		$args['user_id']      = get_current_user_id();
 
 		UM()->user()->password_changed();
 
 		add_filter( 'send_password_change_email', '__return_false' );
 
 		//clear all sessions with old passwords
-		$user = WP_Session_Tokens::get_instance( $user_id );
+		$user = WP_Session_Tokens::get_instance( $args['user_id'] );
 		$user->destroy_all();
 
-		wp_set_password( $changes['user_pass'], $user_id );
+		wp_set_password( $changes['user_pass'], $args['user_id'] );
+
+		do_action( 'um_before_signon_after_account_changes', $args );
 
 		wp_signon(
 			array(
@@ -257,7 +278,7 @@ function um_submit_account_details( $args ) {
 				 * ?>
 				 */
 				$redirect_url = apply_filters( 'um_delete_account_redirect_url', um_user( 'delete_redirect_url' ), $user_id );
-				exit( wp_redirect( $redirect_url ) );
+				um_safe_redirect( $redirect_url );
 			} else {
 				um_redirect_home();
 			}
@@ -392,7 +413,7 @@ function um_submit_account_details( $args ) {
 		}
 	}
 
-	UM()->user()->update_profile( $changes );
+	UM()->user()->update_profile( $changes, 'account' );
 
 	if ( UM()->account()->is_secure_enabled() ) {
 		update_user_meta( $user_id, 'um_account_secure_fields', array() );
@@ -519,6 +540,7 @@ add_action( 'um_before_account_notifications', 'um_before_account_notifications'
  */
 function um_after_user_account_updated_permalink( $user_id, $changes ) {
 	if ( isset( $changes['first_name'] ) || isset( $changes['last_name'] ) ) {
+		/** This action is documented in ultimate-member/includes/core/um-actions-register.php */
 		do_action( 'um_update_profile_full_name', $user_id, $changes );
 	}
 }
@@ -566,55 +588,71 @@ function um_after_account_privacy( $args ) {
 			<label>
 				<?php esc_html_e( 'Download your data', 'ultimate-member' ); ?>
 			</label>
-			<span class="um-tip um-tip-<?php echo is_rtl() ? 'e' : 'w' ?>" original-title="<?php esc_attr_e( 'You can request a file with the information that we believe is most relevant and useful to you.', 'ultimate-member' ); ?>">
+			<span class="um-tip um-tip-<?php echo is_rtl() ? 'e' : 'w'; ?>" title="<?php esc_attr_e( 'You can request a file with the information that we believe is most relevant and useful to you.', 'ultimate-member' ); ?>">
 				<i class="um-icon-help-circled"></i>
 			</span>
 			<div class="um-clear"></div>
 		</div>
-		<?php $completed = $wpdb->get_row(
-			"SELECT ID 
-			FROM $wpdb->posts 
-			WHERE post_author = $user_id AND 
-			      post_type = 'user_request' AND 
-			      post_name = 'export_personal_data' AND 
-			      post_status = 'request-completed' 
-			ORDER BY ID DESC 
-			LIMIT 1",
-		ARRAY_A );
+		<?php
+		$completed = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT ID
+				FROM $wpdb->posts
+				WHERE post_author = %d AND
+					  post_type = 'user_request' AND
+					  post_name = 'export_personal_data' AND
+					  post_status = 'request-completed'
+				ORDER BY ID DESC
+				LIMIT 1",
+				$user_id
+			),
+			ARRAY_A
+		);
 
 		if ( ! empty( $completed ) ) {
-			
+
 			$exports_url = wp_privacy_exports_url();
- 
+
 			echo '<p>' . esc_html__( 'You could download your previous data:', 'ultimate-member' ) . '</p>';
-			echo '<a href="'.esc_attr( $exports_url . get_post_meta( $completed['ID'], '_export_file_name', true ) ) . '">' . esc_html__( 'Download Personal Data', 'ultimate-member' ) . '</a>';
+			echo '<a href="' . esc_attr( $exports_url . get_post_meta( $completed['ID'], '_export_file_name', true ) ) . '">' . esc_html__( 'Download Personal Data', 'ultimate-member' ) . '</a>';
 			echo '<p>' . esc_html__( 'You could send a new request for an export of personal your data.', 'ultimate-member' ) . '</p>';
 
 		}
 
 		$pending = $wpdb->get_row(
-			"SELECT ID, post_status 
-			FROM $wpdb->posts 
-			WHERE post_author = $user_id AND 
-			      post_type = 'user_request' AND 
-			      post_name = 'export_personal_data' AND 
-			      post_status != 'request-completed' 
-			ORDER BY ID DESC 
-			LIMIT 1",
-		ARRAY_A );
+			$wpdb->prepare(
+				"SELECT ID, post_status
+				FROM $wpdb->posts
+				WHERE post_author = %d AND
+					  post_type = 'user_request' AND
+					  post_name = 'export_personal_data' AND
+					  post_status != 'request-completed'
+				ORDER BY ID DESC
+				LIMIT 1",
+				$user_id
+			),
+			ARRAY_A
+		);
 
-		if ( ! empty( $pending ) && $pending['post_status'] == 'request-pending' ) {
+		if ( ! empty( $pending ) && 'request-pending' === $pending['post_status'] ) {
 			echo '<p>' . esc_html__( 'A confirmation email has been sent to your email. Click the link within the email to confirm your export request.', 'ultimate-member' ) . '</p>';
-		} elseif ( ! empty( $pending ) && $pending['post_status'] == 'request-confirmed' ) {
+		} elseif ( ! empty( $pending ) && 'request-confirmed' === $pending['post_status'] ) {
 			echo '<p>' . esc_html__( 'The administrator has not yet approved downloading the data. Please expect an email with a link to your data.', 'ultimate-member' ) . '</p>';
 		} else {
-			if ( UM()->account()->current_password_is_required( 'privacy_download_data' ) ) { ?>
-
+			if ( UM()->account()->current_password_is_required( 'privacy_download_data' ) ) {
+				?>
 				<label name="um-export-data">
 					<?php esc_html_e( 'Enter your current password to confirm a new export of your personal data.', 'ultimate-member' ); ?>
 				</label>
 				<div class="um-field-area">
-					<input id="um-export-data" type="password" placeholder="<?php esc_attr_e( 'Password', 'ultimate-member' )?>">
+					<?php if ( UM()->options()->get( 'toggle_password' ) ) { ?>
+						<div class="um-field-area-password">
+							<input id="um-export-data" type="password" placeholder="<?php esc_attr_e( 'Password', 'ultimate-member' ); ?>">
+							<span class="um-toggle-password"><i class="um-icon-eye"></i></span>
+						</div>
+					<?php } else { ?>
+						<input id="um-export-data" type="password" placeholder="<?php esc_attr_e( 'Password', 'ultimate-member' ); ?>">
+					<?php } ?>
 					<div class="um-field-error um-export-data">
 						<span class="um-field-arrow"><i class="um-faicon-caret-up"></i></span><?php esc_html_e( 'You must enter a password', 'ultimate-member' ); ?>
 					</div>
@@ -642,22 +680,27 @@ function um_after_account_privacy( $args ) {
 			<label>
 				<?php esc_html_e( 'Erase of your data', 'ultimate-member' ); ?>
 			</label>
-			<span class="um-tip um-tip-<?php echo is_rtl() ? 'e' : 'w' ?>" original-title="<?php esc_attr_e( 'You can request erasing of the data that we have about you.', 'ultimate-member' ); ?>">
+			<span class="um-tip um-tip-<?php echo is_rtl() ? 'e' : 'w'; ?>" title="<?php esc_attr_e( 'You can request erasing of the data that we have about you.', 'ultimate-member' ); ?>">
 				<i class="um-icon-help-circled"></i>
 			</span>
 			<div class="um-clear"></div>
 		</div>
 
-		<?php $completed = $wpdb->get_row(
-			"SELECT ID 
-			FROM $wpdb->posts 
-			WHERE post_author = $user_id AND 
-			      post_type = 'user_request' AND 
-			      post_name = 'remove_personal_data' AND 
-			      post_status = 'request-completed' 
-			ORDER BY ID DESC 
-			LIMIT 1",
-		ARRAY_A );
+		<?php
+		$completed = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT ID
+				FROM $wpdb->posts
+				WHERE post_author = %d AND
+					  post_type = 'user_request' AND
+					  post_name = 'remove_personal_data' AND
+					  post_status = 'request-completed'
+				ORDER BY ID DESC
+				LIMIT 1",
+				$user_id
+			),
+			ARRAY_A
+		);
 
 		if ( ! empty( $completed ) ) {
 
@@ -667,26 +710,37 @@ function um_after_account_privacy( $args ) {
 		}
 
 		$pending = $wpdb->get_row(
-			"SELECT ID, post_status 
-			FROM $wpdb->posts 
-			WHERE post_author = $user_id AND 
-			      post_type = 'user_request' AND 
-			      post_name = 'remove_personal_data' AND 
-			      post_status != 'request-completed' 
-			ORDER BY ID DESC 
-			LIMIT 1",
-		ARRAY_A );
+			$wpdb->prepare(
+				"SELECT ID, post_status
+				FROM $wpdb->posts
+				WHERE post_author = %d AND
+					  post_type = 'user_request' AND
+					  post_name = 'remove_personal_data' AND
+					  post_status != 'request-completed'
+				ORDER BY ID DESC
+				LIMIT 1",
+				$user_id
+			),
+			ARRAY_A
+		);
 
-		if ( ! empty( $pending ) && $pending['post_status'] == 'request-pending' ) {
+		if ( ! empty( $pending ) && 'request-pending' === $pending['post_status'] ) {
 			echo '<p>' . esc_html__( 'A confirmation email has been sent to your email. Click the link within the email to confirm your deletion request.', 'ultimate-member' ) . '</p>';
-		} elseif ( ! empty( $pending ) && $pending['post_status'] == 'request-confirmed' ) {
+		} elseif ( ! empty( $pending ) && 'request-confirmed' === $pending['post_status'] ) {
 			echo '<p>' . esc_html__( 'The administrator has not yet approved deleting your data. Please expect an email with a link to your data.', 'ultimate-member' ) . '</p>';
 		} else {
-			if ( UM()->account()->current_password_is_required( 'privacy_erase_data' ) ) { ?>
-
+			if ( UM()->account()->current_password_is_required( 'privacy_erase_data' ) ) {
+				?>
 				<label name="um-erase-data">
 					<?php esc_html_e( 'Enter your current password to confirm the erasure of your personal data.', 'ultimate-member' ); ?>
-					<input id="um-erase-data" type="password" placeholder="<?php esc_attr_e( 'Password', 'ultimate-member' )?>">
+					<?php if ( UM()->options()->get( 'toggle_password' ) ) { ?>
+						<div class="um-field-area-password">
+							<input id="um-erase-data" type="password" placeholder="<?php esc_attr_e( 'Password', 'ultimate-member' ); ?>">
+							<span class="um-toggle-password"><i class="um-icon-eye"></i></span>
+						</div>
+					<?php } else { ?>
+						<input id="um-erase-data" type="password" placeholder="<?php esc_attr_e( 'Password', 'ultimate-member' ); ?>">
+					<?php } ?>
 					<div class="um-field-error um-erase-data">
 						<span class="um-field-arrow"><i class="um-faicon-caret-up"></i></span><?php esc_html_e( 'You must enter a password', 'ultimate-member' ); ?>
 					</div>

@@ -32,7 +32,7 @@ if ( ! class_exists( 'um\core\Options' ) ) {
 		 * Set variables
 		 */
 		function init_variables() {
-			$this->options = get_option( 'um_options' );
+			$this->options = get_option( 'um_options', array() );
 		}
 
 
@@ -114,12 +114,13 @@ if ( ! class_exists( 'um\core\Options' ) ) {
 		 * @use UM()->config()
 		 *
 		 * @param $option_id
-		 * @return bool
+		 * @return mixed
 		 */
 		function get_default( $option_id ) {
 			$settings_defaults = UM()->config()->settings_defaults;
-			if ( ! isset( $settings_defaults[ $option_id ] ) )
+			if ( ! isset( $settings_defaults[ $option_id ] ) ) {
 				return false;
+			}
 
 			return $settings_defaults[ $option_id ];
 		}

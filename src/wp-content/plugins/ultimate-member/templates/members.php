@@ -1,4 +1,18 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit;
+<?php
+/**
+ * Template for the members directory
+ *
+ * This template can be overridden by copying it to yourtheme/ultimate-member/templates/members.php
+ *
+ * Page: "Members"
+ *
+ * @version 2.6.8
+ *
+ * @var array $args
+ */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 global $post;
 
@@ -45,16 +59,16 @@ if ( count( $args['view_types'] ) == 1 ) {
 } else {
 	$args['default_view'] = ! empty( $args['default_view'] ) ? $args['default_view'] : $args['view_types'][0];
 	$default_view = $args['default_view'];
-	$current_view = ( ! empty( $_GET[ 'view_type_' . $unique_hash ] ) && in_array( $_GET[ 'view_type_' . $unique_hash ], $args['view_types'] ) ) ? $_GET[ 'view_type_' . $unique_hash ] : $args['default_view'];
+	$current_view = ( ! empty( $_GET[ 'view_type_' . $unique_hash ] ) && in_array( $_GET[ 'view_type_' . $unique_hash ], $args['view_types'] ) ) ? sanitize_text_field( $_GET[ 'view_type_' . $unique_hash ] ) : $args['default_view'];
 }
 
 // Sorting
 $default_sorting = ! empty( $args['sortby'] ) ? $args['sortby'] : 'user_registered_desc';
-if ( $default_sorting == 'other' && ! empty( $args['sortby_custom'] ) ) {
+if ( 'other' === $default_sorting && ! empty( $args['sortby_custom'] ) ) {
 	$default_sorting = $args['sortby_custom'];
 }
 
-$sort_from_url = '';
+$sort_from_url         = '';
 $custom_sorting_titles = array();
 if ( ! empty( $args['enable_sorting'] ) ) {
 	$sorting_options = empty( $args['sorting_fields'] ) ? array() : $args['sorting_fields'];
@@ -63,10 +77,10 @@ if ( ! empty( $args['enable_sorting'] ) ) {
 	if ( ! empty( $sorting_options ) ) {
 		foreach ( $sorting_options as $option ) {
 			if ( is_array( $option ) ) {
-				$option_keys = array_keys( $option );
+				$option_keys                = array_keys( $option );
 				$sorting_options_prepared[] = $option_keys[0];
 
-				$custom_sorting_titles[ $option_keys[0] ] = $option[ $option_keys[0] ];
+				$custom_sorting_titles[ $option_keys[0] ] = ! empty( $option['label'] ) ? $option['label'] : $option[ $option_keys[0] ];
 			} else {
 				$sorting_options_prepared[] = $option;
 			}
@@ -75,17 +89,17 @@ if ( ! empty( $args['enable_sorting'] ) ) {
 
 	$all_sorting_options = UM()->member_directory()->sort_fields;
 
-	if ( ! in_array( $default_sorting, $sorting_options_prepared ) ) {
+	if ( ! in_array( $default_sorting, $sorting_options_prepared, true ) ) {
 		$sorting_options_prepared[] = $default_sorting;
 
 		$label = $default_sorting;
-		if ( ! empty( $args['sortby_custom_label'] ) && 'other' == $args['sortby'] ) {
+		if ( ! empty( $args['sortby_custom_label'] ) && 'other' === $args['sortby'] ) {
 			$label = $args['sortby_custom_label'];
 		} elseif ( ! empty( $all_sorting_options[ $default_sorting ] ) ) {
 			$label = $all_sorting_options[ $default_sorting ];
 		}
 
-		$label = ( $label == 'random' ) ? __( 'Random', 'ultimate-member' ) : $label;
+		$label = ( 'random' === $label ) ? __( 'Random', 'ultimate-member' ) : $label;
 
 		$custom_sorting_titles[ $default_sorting ] = $label;
 	}
@@ -95,34 +109,44 @@ if ( ! empty( $args['enable_sorting'] ) ) {
 	}
 
 	$sorting_options = apply_filters( 'um_member_directory_pre_display_sorting', $sorting_options, $args );
-	$sort_from_url = ( ! empty( $_GET[ 'sort_' . $unique_hash ] ) && in_array( sanitize_text_field( $_GET[ 'sort_' . $unique_hash ] ), array_keys( $sorting_options ) ) ) ? sanitize_text_field( $_GET[ 'sort_' . $unique_hash ] ) : $default_sorting;
+	$sort_from_url   = ( ! empty( $_GET[ 'sort_' . $unique_hash ] ) && in_array( sanitize_text_field( $_GET[ 'sort_' . $unique_hash ] ), array_keys( $sorting_options ) ) ) ? sanitize_text_field( $_GET[ 'sort_' . $unique_hash ] ) : $default_sorting;
 }
 
 $current_page = ( ! empty( $_GET[ 'page_' . $unique_hash ] ) && is_numeric( $_GET[ 'page_' . $unique_hash ] ) ) ? absint( $_GET[ 'page_' . $unique_hash ] ) : 1;
 
 //Search
-$search = isset( $args['search'] ) ? $args['search'] : false;
+$search      = isset( $args['search'] ) ? $args['search'] : false;
 $show_search = empty( $args['roles_can_search'] ) || ( ! empty( $priority_user_role ) && in_array( $priority_user_role, $args['roles_can_search'] ) );
 $search_from_url = '';
 if ( $search && $show_search ) {
 	$search_from_url = ! empty( $_GET[ 'search_' . $unique_hash ] ) ? stripslashes( sanitize_text_field( $_GET[ 'search_' . $unique_hash ] ) ) : '';
 }
 
-
 //Filters
-$filters = isset( $args['filters'] ) ? $args['filters'] : false;
-$show_filters = empty( $args['roles_can_filter'] ) || ( ! empty( $priority_user_role ) && in_array( $priority_user_role, $args['roles_can_filter'] ) );
+$filters        = isset( $args['filters'] ) ? $args['filters'] : false;
+$show_filters   = empty( $args['roles_can_filter'] ) || ( ! empty( $priority_user_role ) && in_array( $priority_user_role, $args['roles_can_filter'] ) );
 $search_filters = array();
 if ( isset( $args['search_fields'] ) ) {
 	$search_filters = apply_filters( 'um_frontend_member_search_filters', array_unique( array_filter( $args['search_fields'] ) ) );
 }
 
 if ( ! empty( $search_filters ) ) {
-	$search_filters = array_filter( $search_filters, function( $item ) {
-		return in_array( $item, array_keys( UM()->member_directory()->filter_fields ) );
-	});
+	$search_filters = array_filter(
+		$search_filters,
+		function( $item ) {
+			return array_key_exists( $item, UM()->member_directory()->filter_fields );
+		}
+	);
 
 	$search_filters = array_values( $search_filters );
+}
+
+// Hide filter fields based on the field visibility.
+foreach ( $search_filters as $key => $filter ) {
+	$filter_data = UM()->fields()->get_field( $filter );
+	if ( ! um_can_view_field( $filter_data ) ) {
+		unset( $search_filters[ $key ] );
+	}
 }
 
 // Classes
@@ -208,10 +232,13 @@ if ( ( ( $search && $show_search ) || ( $filters && $show_filters && count( $sea
 			}
 		}
 	}
-} ?>
+}
+
+$postid = ! empty( $post->ID ) ? $post->ID : '';
+?>
 
 <div class="um <?php echo esc_attr( $this->get_class( $mode ) ); ?> um-<?php echo esc_attr( substr( md5( $form_id ), 10, 5 ) ); ?>"
-     data-hash="<?php echo esc_attr( substr( md5( $form_id ), 10, 5 ) ) ?>" data-base-post="<?php echo esc_attr( $post->ID ) ?>"
+	 data-hash="<?php echo esc_attr( substr( md5( $form_id ), 10, 5 ) ) ?>" data-base-post="<?php echo esc_attr( $postid ) ?>"
 	 data-must-search="<?php echo esc_attr( $must_search ); ?>" data-searched="<?php echo $not_searched ? '0' : '1'; ?>"
 	 data-view_type="<?php echo esc_attr( $current_view ) ?>" data-page="<?php echo esc_attr( $current_page ) ?>"
 	 data-sorting="<?php echo esc_attr( $sort_from_url ) ?>">
@@ -231,37 +258,47 @@ if ( ( ( $search && $show_search ) || ( $filters && $show_filters && count( $sea
 					<input type="button" class="um-do-search um-button" value="<?php esc_attr_e( 'Search', 'ultimate-member' ); ?>" />
 				</div>
 			</div>
-		<?php }
+			<?php
+		}
 
 		if ( ( ! empty( $args['enable_sorting'] ) && ! empty( $sorting_options ) && count( $sorting_options ) > 1 ) ||
-		     ( $filters && $show_filters && count( $search_filters ) ) ||
-		     ! $single_view ) { ?>
+			( $filters && $show_filters && count( $search_filters ) ) ||
+			! $single_view ) {
+			?>
 			<div class="um-member-directory-header-row">
 				<div class="um-member-directory-nav-line">
-					<?php if ( ! $single_view ) {
+					<?php
+					if ( ! $single_view ) {
 						$view_types = 0;
 
 						foreach ( UM()->member_directory()->view_types as $key => $value ) {
-							if ( in_array( $key, $args['view_types'] ) ) {
-								if ( empty( $view_types ) ) { ?>
-									<span class="um-member-directory-view-type<?php if ( $not_searched ) {?> um-disabled<?php } ?>">
-								<?php }
-
-								$view_types++; ?>
+							if ( in_array( $key, $args['view_types'], true ) ) {
+								if ( empty( $view_types ) ) {
+									?>
+									<span class="um-member-directory-view-type<?php if ( $not_searched ) { ?> um-disabled<?php } ?>">
+									<?php
+								}
+								// translators: %s: title.
+								$data_title = sprintf( __( 'Change to %s', 'ultimate-member' ), $value['title'] );
+								$view_types++;
+								?>
 
 								<a href="javascript:void(0)"
-								   class="um-member-directory-view-type-a<?php if ( ! $not_searched ) {?> um-tip-n<?php } ?>"
-								   data-type="<?php echo $key; ?>"
-								   data-default="<?php echo ( $default_view == $key ) ? 1 : 0; ?>"
-								   title="<?php printf( esc_attr__( 'Change to %s', 'ultimate-member' ), $value['title'] ) ?>"
-								   default-title="<?php echo esc_attr( $value['title'] ); ?>"
-								   next-item="" ><i class="<?php echo $value['icon']; ?>"></i></a>
-							<?php }
+									class="um-member-directory-view-type-a<?php if ( ! $not_searched ) { ?> um-tip-n<?php } ?>"
+									data-type="<?php echo esc_attr( $key ); ?>"
+									data-default="<?php echo ( $default_view === $key ) ? 1 : 0; ?>"
+									title="<?php echo esc_attr( $data_title ); ?>"
+									default-title="<?php echo esc_attr( $value['title'] ); ?>"
+									next-item="" ><i class="<?php echo esc_attr( $value['icon'] ); ?>"></i></a>
+								<?php
+							}
 						}
 
-						if ( ! empty( $view_types ) ) { ?>
+						if ( ! empty( $view_types ) ) {
+							?>
 							</span>
-						<?php }
+							<?php
+						}
 					}
 
 					if ( ! empty( $args['enable_sorting'] ) && ! empty( $sorting_options ) && count( $sorting_options ) > 1 ) { ?>
@@ -311,8 +348,8 @@ if ( ( ( $search && $show_search ) || ( $filters && $show_filters && count( $sea
 									<strong>{{{filter.label}}}</strong>: {{{filter.value_label}}}
 								<# } #>
 								<div class="um-members-filter-remove um-tip-n" data-name="{{{filter.name}}}"
-								     data-value="{{{filter.value}}}" data-range="{{{filter.range}}}"
-								     data-type="{{{filter.type}}}" title="<?php esc_attr_e( 'Remove filter', 'ultimate-member' ) ?>">&times;</div>
+									 data-value="{{{filter.value}}}" data-range="{{{filter.range}}}"
+									 data-type="{{{filter.type}}}" title="<?php esc_attr_e( 'Remove filter', 'ultimate-member' ) ?>">&times;</div>
 							</div>
 						<# }); #>
 					<# } #>
@@ -345,7 +382,7 @@ if ( ( ( $search && $show_search ) || ( $filters && $show_filters && count( $sea
 				<?php
 			}
 		}
-		do_action( 'um_members_directory_head', $args ); ?>
+		do_action( 'um_members_directory_head', $args, $form_id, $not_searched ); ?>
 	</div>
 
 	<div class="um-members-wrapper"></div>

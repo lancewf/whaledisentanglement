@@ -1,11 +1,11 @@
 <?php
 namespace um\core;
 
-// Exit if accessed directly.
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 if ( ! class_exists( 'um\core\Query' ) ) {
-
 
 	/**
 	 * Class Query
@@ -13,27 +13,21 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 	 */
 	class Query {
 
-
 		/**
 		 * @var array
 		 */
 		public $wp_pages = array();
-
 
 		/**
 		 * @var array
 		 */
 		public $roles = array();
 
-
 		/**
 		 * Query constructor.
 		 */
 		public function __construct() {
-
-
 		}
-
 
 		/**
 		 * Ajax pagination for posts
@@ -41,47 +35,44 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 		public function ajax_paginate() {
 			UM()->check_ajax_nonce();
 
-			/**
-			 * @var $hook
-			 * @var $args
-			 */
-			extract( $_REQUEST );
+			// phpcs:disable WordPress.Security.NonceVerification
+			if ( ! isset( $_REQUEST['hook'] ) ) {
+				wp_send_json_error( __( 'Invalid hook.', 'ultimate-member' ) );
+			}
+			$hook = sanitize_key( $_REQUEST['hook'] );
+
+			$args = ! empty( $_REQUEST['args'] ) ? $_REQUEST['args'] : array();
+			// phpcs:enable WordPress.Security.NonceVerification
 
 			ob_start();
 
 			/**
-			 * UM hook
+			 * Fires on posts loading by AJAX in User Profile tabs.
 			 *
-			 * @type action
-			 * @title um_ajax_load_posts__{$hook}
-			 * @description Action on posts loading by AJAX
-			 * @input_vars
-			 * [{"var":"$args","type":"array","desc":"Query arguments"}]
-			 * @change_log
-			 * ["Since: 2.0"]
-			 * @usage add_action( 'um_ajax_load_posts__{$hook}', 'function_name', 10, 1 );
-			 * @example
-			 * <?php
-			 * add_action( 'um_ajax_load_posts__{$hook}', 'my_ajax_load_posts', 10, 1 );
+			 * @since 1.3.x
+			 * @hook  um_ajax_load_posts__{$hook}
+			 *
+			 * @param {array} $args Request.
+			 *
+			 * @example <caption>Make any custom action on when posts loading by AJAX in User Profile.</caption>
 			 * function my_ajax_load_posts( $args ) {
 			 *     // your code here
 			 * }
-			 * ?>
+			 * add_action( 'um_ajax_load_posts__{$hook}', 'my_ajax_load_posts', 10, 1 );
 			 */
 			do_action( "um_ajax_load_posts__{$hook}", $args );
 
 			$output = ob_get_clean();
-
+			// @todo: investigate using WP_KSES
 			die( $output );
 		}
-
 
 		/**
 		 * Get wp pages
 		 *
 		 * @return array|string
 		 */
-		function wp_pages() {
+		public function wp_pages() {
 			global $wpdb;
 
 			if( isset( $this->wp_pages ) && ! empty( $this->wp_pages ) ){
@@ -95,9 +86,9 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 			}
 
 			$pages = $wpdb->get_results(
-				"SELECT * 
-				FROM {$wpdb->posts} 
-				WHERE post_type = 'page' AND 
+				"SELECT *
+				FROM {$wpdb->posts}
+				WHERE post_type = 'page' AND
 				      post_status = 'publish'",
 				OBJECT
 			);
@@ -114,13 +105,12 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 			return $array;
 		}
 
-
 		/**
 		 * Get all forms
 		 *
 		 * @return mixed
 		 */
-		function forms() {
+		public function forms() {
 			$results = array();
 
 			$args = array(
@@ -137,65 +127,55 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 			return $results;
 		}
 
-
 		/**
 		 * Do custom queries
 		 *
-		 * @param $args
+		 * @param array $args
 		 *
 		 * @return array|bool|int|\WP_Query
 		 */
-		function make( $args ) {
-
+		public function make( $args ) {
 			$defaults = array(
-				'post_type' => 'post',
-				'post_status' => array('publish')
+				'post_type'   => 'post',
+				'post_status' => array( 'publish' ),
 			);
-			$args = wp_parse_args( $args, $defaults );
+			$args     = wp_parse_args( $args, $defaults );
 
-			if ( isset( $args['post__in'] ) && empty( $args['post__in'] ) )
+			if ( isset( $args['post__in'] ) && empty( $args['post__in'] ) ) {
 				return false;
+			}
 
-			extract( $args );
-
-			if ( $post_type == 'comment' ) { // comments
-
+			if ( 'comment' === $args['post_type'] ) {
+				// Comments query.
 				unset( $args['post_type'] );
-
 				/**
-				 * UM hook
+				 * Filters excluded comment types.
 				 *
-				 * @type filter
-				 * @title um_excluded_comment_types
-				 * @description Extend excluded comment types
-				 * @input_vars
-				 * [{"var":"$types","type":"array","desc":"Comment Types"}]
-				 * @change_log
-				 * ["Since: 2.0"]
-				 * @usage
-				 * <?php add_filter( 'um_excluded_comment_types', 'function_name', 10, 1 ); ?>
-				 * @example
-				 * <?php
-				 * add_filter( 'um_excluded_comment_types', 'my_excluded_comment_types', 10, 1 );
-				 * function my_profile_active_tab( $types ) {
+				 * @since 1.3.x
+				 * @hook  um_excluded_comment_types
+				 *
+				 * @param {array} $types Comment Types.
+				 *
+				 * @return {array} Comment Types.
+				 *
+				 * @example <caption>Extend excluded comment types.</caption>
+				 * function my_excluded_comment_types( $types ) {
 				 *     // your code here
 				 *     return $types;
 				 * }
-				 * ?>
+				 * add_filter( 'um_excluded_comment_types', 'my_excluded_comment_types' );
 				 */
-				$args['type__not_in'] = apply_filters( 'um_excluded_comment_types', array('') );
+				$args['type__not_in'] = apply_filters( 'um_excluded_comment_types', array( '' ) );
 
-				$comments = get_comments($args);
-				return $comments;
-
-			} else {
-				$custom_posts = new \WP_Query();
-				$args['post_status'] = is_array( $args['post_status'] ) ? $args['post_status'] : explode( ',', $args['post_status'] );
-
-				$custom_posts->query( $args );
-
-				return $custom_posts;
+				return get_comments( $args );
 			}
+
+			$custom_posts        = new \WP_Query();
+			$args['post_status'] = is_array( $args['post_status'] ) ? $args['post_status'] : explode( ',', $args['post_status'] );
+
+			$custom_posts->query( $args );
+
+			return $custom_posts;
 		}
 
 
@@ -206,7 +186,7 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 		 *
 		 * @return array
 		 */
-		function get_recent_users($number = 5){
+		function get_recent_users( $number = 5 ) {
 			$args = array( 'fields' => 'ID', 'number' => $number, 'orderby' => 'user_registered', 'order' => 'desc' );
 
 			$users = new \WP_User_Query( $args );
@@ -217,47 +197,114 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 		/**
 		 * Count users by status
 		 *
+		 * @since 2.4.2 $status = 'unassigned' is unused. Please use `UM()->setup()->set_default_user_status()` instead. Will be deprecated since 3.0
+		 *
 		 * @param $status
 		 *
 		 * @return int
 		 */
 		function count_users_by_status( $status ) {
-			$args = array( 'fields' => 'ID', 'number' => 0, 'um_custom_user_query' => true );
-			if ( $status == 'unassigned' ) {
-				$args['meta_query'][] = array(array('key' => 'account_status','compare' => 'NOT EXISTS'));
-				$users = new \WP_User_Query( $args );
-				foreach ( $users->results as $user ) {
-					update_user_meta( $user, 'account_status', 'approved' );
-				}
-			} else {
-				$args['meta_query'][] = array(array('key' => 'account_status','value' => $status,'compare' => '='));
+			if ( 'unassigned' === $status ) {
+				_deprecated_argument(
+					__FUNCTION__,
+					'2.4.2',
+					__( 'The "unassigned" $status has been removed. Use `UM()->setup()->set_default_user_status()` for setting up default user account status.', 'ultimate-member' )
+				);
+
+				UM()->setup()->set_default_user_status();
+				return 0;
 			}
-			$users = new \WP_User_Query( $args );
-			return count( $users->results );
+
+			$users_count = get_transient( "um_count_users_{$status}" );
+			if ( false === $users_count ) {
+				$args = array(
+					'fields'               => 'ids',
+					'number'               => 1,
+					'meta_query'           => array(
+						array(
+							'key'     => 'account_status',
+							'value'   => $status,
+							'compare' => '=',
+						),
+					),
+					'um_custom_user_query' => true,
+				);
+
+				$users = new \WP_User_Query( $args );
+				if ( empty( $users ) || is_wp_error( $users ) ) {
+					$users_count = 0;
+				} else {
+					$users_count = $users->get_total();
+				}
+
+				set_transient( "um_count_users_{$status}", $users_count );
+			}
+
+			return $users_count;
 		}
 
 
 		/**
-		 * Get users by status
+		 * Get pending users (in queue)
 		 *
-		 * @param $status
-		 * @param int $number
-		 *
-		 * @return array
+		 * @return int
 		 */
-		function get_users_by_status($status, $number = 5){
-			$args = array( 'fields' => 'ID', 'number' => $number, 'orderby' => 'user_registered', 'order' => 'desc' );
+		function get_pending_users_count() {
+			$users_count = get_transient( 'um_count_users_pending_dot' );
+			if ( false === $users_count ) {
+				$args = array(
+					'fields'               => 'ids',
+					'number'               => 1,
+					'meta_query'           => array(
+						'relation' => 'OR',
+						array(
+							'key'     => 'account_status',
+							'value'   => 'awaiting_email_confirmation',
+							'compare' => '=',
+						),
+						array(
+							'key'     => 'account_status',
+							'value'   => 'awaiting_admin_review',
+							'compare' => '=',
+						),
+					),
+					'um_custom_user_query' => true,
+				);
 
-			$args['meta_query'][] = array(
-				array(
-					'key'     => 'account_status',
-					'value'   => $status,
-					'compare' => '='
-				)
-			);
+				/**
+				 * UM hook
+				 *
+				 * @type filter
+				 * @title um_admin_pending_queue_filter
+				 * @description Change user query arguments when get pending users
+				 * @input_vars
+				 * [{"var":"$args","type":"array","desc":"WP_Users query arguments"}]
+				 * @change_log
+				 * ["Since: 2.0"]
+				 * @usage
+				 * <?php add_filter( 'um_admin_pending_queue_filter', 'function_name', 10, 1 ); ?>
+				 * @example
+				 * <?php
+				 * add_filter( 'um_admin_pending_queue_filter', 'my_admin_pending_queue', 10, 1 );
+				 * function my_admin_pending_queue( $args ) {
+				 *     // your code here
+				 *     return $args;
+				 * }
+				 * ?>
+				 */
+				$args = apply_filters( 'um_admin_pending_queue_filter', $args );
 
-			$users = new \WP_User_Query( $args );
-			return $users->results;
+				$users = new \WP_User_Query( $args );
+				if ( empty( $users ) || is_wp_error( $users ) ) {
+					$users_count = 0;
+				} else {
+					$users_count = $users->get_total();
+				}
+
+				set_transient( 'um_count_users_pending_dot', $users_count );
+			}
+
+			return $users_count;
 		}
 
 
@@ -279,24 +326,34 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 		 * @param $post_id
 		 * @param $new_value
 		 */
-		function update_attr( $key, $post_id, $new_value ){
+		function update_attr( $key, $post_id, $new_value ) {
+			/**
+			 * Post meta values are passed through the stripslashes() function upon being stored.
+			 * Function wp_slash() is added to compensate for the call to stripslashes().
+			 * @see https://developer.wordpress.org/reference/functions/update_post_meta/
+			 */
+			if ( is_array( $new_value ) ) {
+				foreach ( $new_value as $k => $val ) {
+					if ( is_array( $val ) && array_key_exists( 'custom_dropdown_options_source', $val ) ) {
+						$new_value[ $k ]['custom_dropdown_options_source'] = wp_slash( $val['custom_dropdown_options_source'] );
+					}
+				}
+			}
+
 			update_post_meta( $post_id, '_um_' . $key, $new_value );
 		}
 
-
 		/**
-		 * Get data
+		 * Get postmeta related to Ultimate Member.
 		 *
-		 * @param $key
-		 * @param $post_id
+		 * @param string $key
+		 * @param int    $post_id
 		 *
 		 * @return mixed
 		 */
-		function get_attr( $key, $post_id ) {
-			$meta = get_post_meta( $post_id, '_um_' . $key, true );
-			return $meta;
+		public function get_attr( $key, $post_id ) {
+			return get_post_meta( $post_id, '_um_' . $key, true );
 		}
-
 
 		/**
 		 * Delete data
@@ -442,5 +499,32 @@ if ( ! class_exists( 'um\core\Query' ) ) {
 			}
 		}
 
+
+		/**
+		 * Get users by status
+		 *
+		 * @param $status
+		 * @param int $number
+		 *
+		 * @deprecated 2.4.2
+		 *
+		 * @return array
+		 */
+		function get_users_by_status( $status, $number = 5 ) {
+			_deprecated_function( __METHOD__, '2.4.2' );
+
+			$args = array( 'fields' => 'ID', 'number' => $number, 'orderby' => 'user_registered', 'order' => 'desc' );
+
+			$args['meta_query'][] = array(
+				array(
+					'key'     => 'account_status',
+					'value'   => $status,
+					'compare' => '='
+				)
+			);
+
+			$users = new \WP_User_Query( $args );
+			return $users->results;
+		}
 	}
 }

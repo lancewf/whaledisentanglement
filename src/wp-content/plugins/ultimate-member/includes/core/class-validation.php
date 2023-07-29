@@ -1,8 +1,9 @@
 <?php
 namespace um\core;
 
-// Exit if accessed directly
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 if ( ! class_exists( 'um\core\Validation' ) ) {
 
@@ -13,18 +14,27 @@ if ( ! class_exists( 'um\core\Validation' ) ) {
 	 */
 	class Validation {
 
+		/**
+		 * @var string
+		 */
+		public $regex_safe = '/\A[\w\-\.]+\z/';
+
+		/**
+		 * @var string
+		 */
+		public $regex_username_safe = '|[^a-z0-9 _.\-@]|i';
+
+		/**
+		 * @var string
+		 */
+		public $regex_phone_number = '/\A[\d\-\.\+\(\)\ ]+\z/';
 
 		/**
 		 * Validation constructor.
 		 */
-		function __construct() {
-			$this->regex_safe = '/\A[\w\-\.]+\z/';
-			$this->regex_username_safe = '|[^a-z0-9 _.\-@]|i';
-			$this->regex_phone_number = '/\A[\d\-\.\+\(\)\ ]+\z/';
-
-
-			add_filter( 'um_user_pre_updating_files_array', array( $this, 'validate_files' ), 10, 1 );
-			add_filter( 'um_before_save_filter_submitted', array( $this, 'validate_fields_values' ), 10, 2 );
+		public function __construct() {
+			add_filter( 'um_user_pre_updating_files_array', array( $this, 'validate_files' ) );
+			add_filter( 'um_before_save_filter_submitted', array( $this, 'validate_fields_values' ), 10, 3 );
 		}
 
 
@@ -47,13 +57,8 @@ if ( ! class_exists( 'um\core\Validation' ) ) {
 			return $files;
 		}
 
-
-
-		function validate_fields_values( $changes, $args ) {
-			$fields = array();
-			if ( ! empty( $args['custom_fields'] ) ) {
-				$fields = unserialize( $args['custom_fields'] );
-			}
+		public function validate_fields_values( $changes, $args, $form_data ) {
+			$fields = maybe_unserialize( $form_data['custom_fields'] );
 
 			foreach ( $changes as $key => $value ) {
 				if ( ! isset( $fields[ $key ] ) ) {
@@ -61,7 +66,7 @@ if ( ! class_exists( 'um\core\Validation' ) ) {
 				}
 
 				//rating field validation
-				if ( isset( $fields[ $key ]['type'] ) && $fields[ $key ]['type'] == 'rating' ) {
+				if ( isset( $fields[ $key ]['type'] ) && 'rating' === $fields[ $key ]['type'] ) {
 					if ( ! is_numeric( $value ) ) {
 						unset( $changes[ $key ] );
 					} else {
@@ -85,20 +90,25 @@ if ( ! class_exists( 'um\core\Validation' ) ) {
 
 				// Dynamic dropdown options population
 				$has_custom_source = apply_filters("um_has_dropdown_options_source__{$key}", false );
-				if ( in_array( $fields[ $key ]['type'], array( 'select','multiselect' ) ) && $has_custom_source ){
-					$arr_options = apply_filters("um_get_field__{$key}", $fields[ $key ]['options'] );
-					$fields[ $key ]['options'] = array_keys( $arr_options['options'] );
+				if ( in_array( $fields[ $key ]['type'], array( 'select','multiselect' ), true ) && $has_custom_source ) {
+					/** This filter is documented in includes/core/class-fields.php */
+					$fields[ $key ] = apply_filters( "um_get_field__{$key}", $fields[ $key ] );
+					if ( is_array( $fields[ $key ] ) && array_key_exists( 'options', $fields[ $key ] ) ) {
+						$fields[ $key ]['options'] = array_keys( $fields[ $key ]['options'] );
+					}
 				}
 
 				// Dropdown options source from callback function
-				if ( in_array( $fields[ $key ]['type'], array( 'select','multiselect' ) ) && 
+				if ( in_array( $fields[ $key ]['type'], array( 'select','multiselect' ), true ) &&
 					isset( $fields[ $key ]['custom_dropdown_options_source'] ) &&
 					! empty( $fields[ $key ]['custom_dropdown_options_source'] ) &&
-					function_exists( $fields[ $key ]['custom_dropdown_options_source'] ) ){
-					$arr_options = call_user_func( $fields[ $key ]['custom_dropdown_options_source'] );
-					$fields[ $key ]['options'] = array_keys( $arr_options );
+					function_exists( $fields[ $key ]['custom_dropdown_options_source'] ) ) {
+					if ( ! UM()->fields()->is_source_blacklisted( $fields[ $key ]['custom_dropdown_options_source'] ) ) {
+						$arr_options = call_user_func( $fields[ $key ]['custom_dropdown_options_source'] );
+						$fields[ $key ]['options'] = array_keys( $arr_options );
+					}
 				}
-				
+
 				// Unset changed value that doesn't match the option list
 				if ( in_array( $fields[ $key ]['type'], array( 'select' ) ) &&
 				     ! empty( $stripslashes ) && ! empty( $fields[ $key ]['options'] ) &&
@@ -113,12 +123,10 @@ if ( ! class_exists( 'um\core\Validation' ) ) {
 					$value = array_map( 'stripslashes', array_map( 'trim', $value ) );
 					$changes[ $key ] = array_intersect( $value, array_map( 'trim', $fields[ $key ]['options'] ) );
 				}
-
 			}
 
 			return $changes;
 		}
-
 
 		/**
 		 * Removes html from any string
@@ -295,10 +303,10 @@ if ( ! class_exists( 'um\core\Validation' ) ) {
 			if ( ! $string ) {
 				return true;
 			}
-			if ( substr_count( $string, '#' ) > 1 ) {
+			if ( strlen( $string ) < 2 || strlen( $string ) > 31 ) {
 				return false;
 			}
-			if ( ! preg_match( '/^(.+)#(\d+)$/', trim( $string ) ) ) {
+			if ( ! preg_match( '/^[a-z\d_]+(?:\.[a-z\d_]+)*(\.[a-z]*)?$/', trim( $string ) ) ) {
 				return false;
 			}
 			return true;

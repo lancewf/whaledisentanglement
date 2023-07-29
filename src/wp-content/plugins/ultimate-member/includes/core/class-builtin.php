@@ -1,11 +1,11 @@
 <?php
 namespace um\core;
 
-// Exit if accessed directly
-if ( ! defined( 'ABSPATH' ) ) exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
 if ( ! class_exists( 'um\core\Builtin' ) ) {
-
 
 	/**
 	 * Class Builtin
@@ -13,33 +13,44 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 	 */
 	class Builtin {
 
-
 		/**
 		 * @var array
 		 */
 		public $predefined_fields = array();
 
+		/**
+		 * @var array
+		 */
+		public $all_user_fields = array();
 
 		/**
 		 * @var array
 		 */
-		var $all_user_fields = array();
-
+		public $core_fields = array();
 
 		/**
 		 * @var array
 		 */
-		var $core_fields = array();
+		public $saved_fields = array();
 
+		/**
+		 * @var array
+		 */
+		public $custom_fields = array();
+
+		/**
+		 * @var array
+		 */
+		public $fields_dropdown = array();
 
 		/**
 		 * Builtin constructor.
 		 */
-		function __construct() {
+		public function __construct() {
 			add_action( 'init', array( &$this, 'set_core_fields' ), 1 );
 			add_action( 'init', array( &$this, 'set_predefined_fields' ), 1 );
 			add_action( 'init', array( &$this, 'set_custom_fields' ), 1 );
-			$this->saved_fields = get_option( 'um_fields' );
+			$this->saved_fields = get_option( 'um_fields', array() );
 		}
 
 
@@ -67,7 +78,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 
 			$fields = $this->all_user_fields;
 
-			if ( isset( $fields[$field]['options'] ) || ! empty( $fields[$field]['custom_dropdown_options_source'] ) ) {
+			if ( isset( $fields[ $field ]['options'] ) || ! empty( $fields[ $field ]['custom_dropdown_options_source'] ) ) {
 				return true;
 			}
 
@@ -199,26 +210,22 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 			return 0;
 		}
 
-
 		/**
-		 * Get a core field attrs
+		 * Get a core field attrs.
 		 *
-		 * @param $type
+		 * @param string $type Field type.
 		 *
-		 * @return array|mixed
+		 * @return array Field data.
 		 */
-		function get_core_field_attrs( $type ) {
-			return ( isset( $this->core_fields[ $type ] ) ) ? $this->core_fields[ $type ] : array('');
+		public function get_core_field_attrs( $type ) {
+			return array_key_exists( $type, $this->core_fields ) ? $this->core_fields[ $type ] : array( '' );
 		}
-
 
 		/**
 		 * Core Fields
 		 */
-		function set_core_fields() {
-
+		public function set_core_fields() {
 			$this->core_fields = array(
-
 				'row' => array(
 					'name' => 'Row',
 					'in_fields' => false,
@@ -238,6 +245,22 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 						'_title' => array(
 							'mode' => 'required',
 							'error' => __('You must provide a title','ultimate-member')
+						),
+						'_metakey' => array(
+							'mode' => 'unique',
+						),
+					)
+				),
+
+				'tel' => array(
+					'name' => __( 'Telephone Box', 'ultimate-member' ),
+					'col1' => array('_title','_metakey','_help','_default','_min_chars','_visibility'),
+					'col2' => array('_label','_placeholder','_public','_roles','_validate','_custom_validate','_max_chars'),
+					'col3' => array('_required','_editable','_icon'),
+					'validate' => array(
+						'_title' => array(
+							'mode' => 'required',
+							'error' => __('You must provide a title','ultimate-member'),
 						),
 						'_metakey' => array(
 							'mode' => 'unique',
@@ -600,30 +623,45 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'validate' => array(
 						'_title' => array(
 							'mode' => 'required',
-							'error' => __('You must provide a title','ultimate-member')
+							'error' => __( 'You must provide a title', 'ultimate-member' ),
 						),
 						'_metakey' => array(
 							'mode' => 'unique',
 						),
-					)
+					),
+				),
+				'spotify' => array(
+					'name'     => __( 'Spotify URL', 'ultimate-member' ),
+					'col1'     => array('_title','_metakey','_help','_visibility'),
+					'col2'     => array('_label','_placeholder','_public','_roles','_validate','_custom_validate'),
+					'col3'     => array('_required','_editable','_icon'),
+					'validate' => array(
+						'_title'   => array(
+							'mode'  => 'required',
+							'error' => __( 'You must provide a title', 'ultimate-member' ),
+						),
+						'_metakey' => array(
+							'mode' => 'unique',
+						),
+					),
 				),
 
 				/*'group' => array(
-                    'name' => 'Field Group',
-                    'col1' => array('_title','_max_entries'),
-                    'col2' => array('_label','_public','_roles'),
-                    'form_only' => true,
-                    'validate' => array(
-                        '_title' => array(
-                            'mode' => 'required',
-                            'error' => 'You must provide a title'
-                        ),
-                        '_label' => array(
-                            'mode' => 'required',
-                            'error' => 'You must provide a label'
-                        ),
-                    )
-                ),*/
+					'name' => 'Field Group',
+					'col1' => array('_title','_max_entries'),
+					'col2' => array('_label','_public','_roles'),
+					'form_only' => true,
+					'validate' => array(
+						'_title' => array(
+							'mode' => 'required',
+							'error' => 'You must provide a title'
+						),
+						'_label' => array(
+							'mode' => 'required',
+							'error' => 'You must provide a label'
+						),
+					)
+				),*/
 
 			);
 
@@ -659,16 +697,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 
 			$um_roles = array();
 			if ( ! empty( $wp_roles->roles ) ) {
-				$role_keys = get_option( 'um_roles', array() );
-				if ( ! empty( $role_keys ) && is_array( $role_keys ) ) {
-					$role_keys = array_map( function( $item ) {
-						return 'um_' . $item;
-					}, $role_keys );
-				} else {
-					$role_keys = array();
-				}
-
-				$exclude_roles = array_diff( array_keys( $wp_roles->roles ), array_merge( $role_keys, array( 'subscriber' ) ) );
+				$exclude_roles = array_diff( array_keys( $wp_roles->roles ), UM()->roles()->get_editable_user_roles() );
 				$um_roles = UM()->roles()->get_roles( false, $exclude_roles );
 			}
 
@@ -933,24 +962,6 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'match' => 'https://linkedin.com/',
 				),
 
-				'googleplus' => array(
-					'title' => __('Google+','ultimate-member'),
-					'metakey' => 'googleplus',
-					'type' => 'url',
-					'label' => __('Google+','ultimate-member'),
-					'required' => 0,
-					'public' => 1,
-					'editable' => 1,
-					'url_target' => '_blank',
-					'url_rel' => 'nofollow',
-					'icon' => 'um-faicon-google-plus',
-					'validate' => 'google_url',
-					'url_text' => 'Google+',
-					'advanced' => 'social',
-					'color' => '#dd4b39',
-					'match' => 'https://google.com/+',
-				),
-
 				'instagram' => array(
 					'title' => __('Instagram','ultimate-member'),
 					'metakey' => 'instagram',
@@ -1041,22 +1052,79 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'validate' => 'discord',
 				),
 
-				'youtube' => array(
-					'title' => __('YouTube','ultimate-member'),
-					'metakey' => 'youtube',
-					'type' => 'url',
-					'label' => __('YouTube','ultimate-member'),
-					'required' => 0,
-					'public' => 1,
-					'editable' => 1,
+				'tiktok' => array(
+					'title'      => __('TikTok','ultimate-member'),
+					'metakey'    => 'tiktok',
+					'type'       => 'url',
+					'label'      => __('TikTok','ultimate-member'),
+					'required'   => 0,
+					'public'     => 1,
+					'editable'   => 1,
 					'url_target' => '_blank',
-					'url_rel' => 'nofollow',
-					'icon' => 'um-faicon-youtube',
-					'validate' => 'youtube_url',
-					'url_text' => 'YouTube',
-					'advanced' => 'social',
-					'color' => '#e52d27',
-					'match' => 'https://youtube.com/',
+					'url_rel'    => 'nofollow',
+					'icon'       => 'um-icon-ios-musical-note',
+					'validate'   => 'tiktok_url',
+					'url_text'   => 'TikTok',
+					'advanced'   => 'social',
+					'color'      => '#000000',
+					'match'      => 'https://tiktok.com/@',
+				),
+
+				'twitch' => array(
+					'title'      => __('Twitch','ultimate-member'),
+					'metakey'    => 'twitch',
+					'type'       => 'url',
+					'label'      => __('Twitch','ultimate-member'),
+					'required'   => 0,
+					'public'     => 1,
+					'editable'   => 1,
+					'icon'       => 'um-faicon-twitch',
+					'url_target' => '_blank',
+					'url_rel'    => 'nofollow',
+					'validate'   => 'twitch_url',
+					'url_text'   => 'Twitch',
+					'advanced'   => 'social',
+					'color'      => '#6441a5',
+					'match'      => 'https://twitch.tv/',
+				),
+
+				'reddit' => array(
+					'title'      => __('Reddit','ultimate-member'),
+					'metakey'    => 'reddit',
+					'type'       => 'url',
+					'label'      => __('Reddit','ultimate-member'),
+					'required'   => 0,
+					'public'     => 1,
+					'editable'   => 1,
+					'icon'       => 'um-icon-social-reddit',
+					'url_target' => '_blank',
+					'url_rel'    => 'nofollow',
+					'validate'   => 'reddit_url',
+					'url_text'   => 'Reddit',
+					'advanced'   => 'social',
+					'color'      => '#ff4500',
+					'match'      => 'https://www.reddit.com/user/',
+				),
+
+				'youtube' => array(
+					'title'      => __( 'YouTube', 'ultimate-member' ),
+					'metakey'    => 'youtube',
+					'type'       => 'url',
+					'label'      => __( 'YouTube', 'ultimate-member' ),
+					'required'   => 0,
+					'public'     => 1,
+					'editable'   => 1,
+					'url_target' => '_blank',
+					'url_rel'    => 'nofollow',
+					'icon'       => 'um-faicon-youtube',
+					'validate'   => 'youtube_url',
+					'url_text'   => __( 'YouTube', 'ultimate-member' ),
+					'advanced'   => 'social',
+					'color'      => '#e52d27',
+					'match'      => array(
+						'https://youtube.com/',
+						'https://youtu.be/',
+					),
 				),
 
 				'soundcloud' => array(
@@ -1075,24 +1143,6 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 					'advanced' => 'social',
 					'color' => '#f50',
 					'match' => 'https://soundcloud.com/',
-				),
-
-				'vkontakte' => array(
-					'title' => __('VKontakte','ultimate-member'),
-					'metakey' => 'vkontakte',
-					'type' => 'url',
-					'label' => __('VKontakte','ultimate-member'),
-					'required' => 0,
-					'public' => 1,
-					'editable' => 1,
-					'url_target' => '_blank',
-					'url_rel' => 'nofollow',
-					'icon' => 'um-faicon-vk',
-					'validate' => 'vk_url',
-					'url_text' => 'VKontakte',
-					'advanced' => 'social',
-					'color' => '#2B587A',
-					'match' => 'https://vk.com/',
 				),
 
 				'role_select' => array(
@@ -1133,7 +1183,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 				'phone_number' => array(
 					'title' => __('Phone Number','ultimate-member'),
 					'metakey' => 'phone_number',
-					'type' => 'text',
+					'type' => 'tel',
 					'label' => __('Phone Number','ultimate-member'),
 					'required' => 0,
 					'public' => 1,
@@ -1145,7 +1195,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 				'mobile_number' => array(
 					'title' => __('Mobile Number','ultimate-member'),
 					'metakey' => 'mobile_number',
-					'type' => 'text',
+					'type' => 'tel',
 					'label' => __('Mobile Number','ultimate-member'),
 					'required' => 0,
 					'public' => 1,
@@ -1248,7 +1298,7 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 						'Yes'   => __( 'Yes', 'ultimate-member' ),
 					),
 					'account_only'  => true,
-					'required_opt'  => array( 'members_page', 1 ),
+					'required_opt'  => array( 'members_page', true ),
 				),
 
 				'delete_account'        => array(
@@ -1309,69 +1359,58 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 		 * Custom Fields
 		 */
 		function set_custom_fields() {
-
 			if ( is_array( $this->saved_fields ) ) {
-
 				$this->custom_fields = $this->saved_fields;
-
 			} else {
-
-				$this->custom_fields = '';
-
+				$this->custom_fields = array();
 			}
 
-			$custom = $this->custom_fields;
+			$custom     = $this->custom_fields;
 			$predefined = $this->predefined_fields;
 
-			if ( is_array( $custom ) ){
+			if ( is_array( $custom ) ) {
 				$this->all_user_fields = array_merge( $predefined, $custom );
 			} else {
 				$this->all_user_fields = $predefined;
 			}
-
 		}
 
-
 		/**
-		 * Get all fields without metakeys
+		 * Get all fields without metakeys.
 		 *
 		 * @since 2.0.56
 		 *
 		 * @return array
 		 */
-		function get_fields_without_metakey() {
+		public function get_fields_without_metakey() {
 			$fields_without_metakey = array(
 				'block',
 				'shortcode',
 				'spacing',
 				'divider',
-				'group'
+				'group',
 			);
 
-
 			/**
-			 * UM hook
+			 * Filters the field types without meta key.
 			 *
-			 * @type filter
-			 * @title um_fields_without_metakey
-			 * @description Field Types without meta key
-			 * @input_vars
-			 * [{"var":"$types","type":"array","desc":"Field Types"}]
-			 * @change_log
-			 * ["Since: 2.0"]
-			 * @usage add_filter( 'um_fields_without_metakey', 'function_name', 10, 1 );
-			 * @example
-			 * <?php
-			 * add_filter( 'um_fields_without_metakey', 'my_fields_without_metakey', 10, 1 );
-			 * function my_fields_without_metakey( $types ) {
-			 *     // your code here
-			 *     return $types;
+			 * @param {array} $field_types Field types.
+			 *
+			 * @return {array} Field types.
+			 *
+			 * @since 1.3.x
+			 * @hook um_fields_without_metakey
+			 *
+			 * @example <caption>It adds 'location' and 'distance' field-types to fields without metakeys array.</caption>
+			 * function my_custom_um_fields_without_metakey( $field_types ) {
+			 *     $field_types[] = 'location';
+			 *     $field_types[] = 'distance';
+			 *     return $field_types;
 			 * }
-			 * ?>
+			 * add_filter( 'um_fields_without_metakey', 'my_custom_um_fields_without_metakey' );
 			 */
 			return apply_filters( 'um_fields_without_metakey', $fields_without_metakey );
 		}
-
 
 		/**
 		 * May be used to show a dropdown, or source for user meta
@@ -1444,31 +1483,33 @@ if ( ! class_exists( 'um\core\Builtin' ) ) {
 		 */
 		function validation_types() {
 
-			$array[0] = __('None','ultimate-member');
-			$array['alphabetic'] = __('Alphabetic value only','ultimate-member');
-			$array['alpha_numeric'] = __('Alpha-numeric value','ultimate-member');
-			$array['english'] = __('English letters only','ultimate-member');
-			$array['facebook_url'] = __('Facebook URL','ultimate-member');
-			$array['google_url'] = __('Google+ URL','ultimate-member');
-			$array['instagram_url'] = __('Instagram URL','ultimate-member');
-			$array['linkedin_url'] = __('LinkedIn URL','ultimate-member');
-			$array['vk_url'] = __('VKontakte URL','ultimate-member');
-			$array['lowercase'] = __('Lowercase only','ultimate-member');
-			$array['numeric'] = __('Numeric value only','ultimate-member');
-			$array['phone_number'] = __('Phone Number','ultimate-member');
-			$array['skype'] = __('Skype ID','ultimate-member');
-			$array['soundcloud'] = __( 'SoundCloud Profile', 'ultimate-member' );
-			$array['twitter_url'] = __('Twitter URL','ultimate-member');
-			$array['is_email'] = __('E-mail( Not Unique )','ultimate-member');
-			$array['unique_email'] = __('Unique E-mail','ultimate-member');
-			$array['unique_value'] = __('Unique Metakey value','ultimate-member');
-			$array['unique_username'] = __('Unique Username','ultimate-member');
+			$array[0]                          = __('None','ultimate-member');
+			$array['alphabetic']               = __('Alphabetic value only','ultimate-member');
+			$array['alpha_numeric']            = __('Alpha-numeric value','ultimate-member');
+			$array['english']                  = __('English letters only','ultimate-member');
+			$array['facebook_url']             = __('Facebook URL','ultimate-member');
+			$array['instagram_url']            = __('Instagram URL','ultimate-member');
+			$array['linkedin_url']             = __('LinkedIn URL','ultimate-member');
+			$array['lowercase']                = __('Lowercase only','ultimate-member');
+			$array['numeric']                  = __('Numeric value only','ultimate-member');
+			$array['phone_number']             = __('Phone Number','ultimate-member');
+			$array['skype']                    = __('Skype ID','ultimate-member');
+			$array['soundcloud']               = __( 'SoundCloud Profile', 'ultimate-member' );
+			$array['twitter_url']              = __('Twitter URL','ultimate-member');
+			$array['is_email']                 = __('E-mail( Not Unique )','ultimate-member');
+			$array['unique_email']             = __('Unique E-mail','ultimate-member');
+			$array['unique_value']             = __('Unique Metakey value','ultimate-member');
+			$array['unique_username']          = __('Unique Username','ultimate-member');
 			$array['unique_username_or_email'] = __('Unique Username/E-mail','ultimate-member');
-			$array['url'] = __('Website URL','ultimate-member');
-			$array['youtube_url'] = __('YouTube Profile','ultimate-member');
-			$array['telegram_url'] = __('Telegram URL','ultimate-member');
-			$array['discord'] = __('Discord ID','ultimate-member');
-			$array['custom'] = __('Custom Validation','ultimate-member');
+			$array['url']                      = __('Website URL','ultimate-member');
+			$array['youtube_url']              = __('YouTube Profile','ultimate-member');
+			$array['spotify_url']              = __('Spotify URL','ultimate-member');
+			$array['telegram_url']             = __('Telegram URL','ultimate-member');
+			$array['discord']                  = __('Discord ID','ultimate-member');
+			$array['tiktok_url']               = __('TikTok URL','ultimate-member');
+			$array['twitch_url']               = __('Twitch URL','ultimate-member');
+			$array['reddit_url']               = __('Reddit URL','ultimate-member');
+			$array['custom']                   = __('Custom Validation','ultimate-member');
 
 			/**
 			 * UM hook

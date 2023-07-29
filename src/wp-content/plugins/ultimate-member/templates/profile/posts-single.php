@@ -1,4 +1,18 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
+<?php
+/**
+ * Template for the profile single post
+ *
+ * This template can be overridden by copying it to yourtheme/ultimate-member/profile/posts-single.php
+ *
+ * Page: "Profile"
+ *
+ * @version 2.6.1
+ *
+ * @var object $post
+ */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+} ?>
 
 <div class="um-item">
 	<div class="um-item-link">
@@ -20,7 +34,10 @@
 
 	<div class="um-item-meta">
 		<span>
-			<?php printf( __( '%s ago', 'ultimate-member' ), human_time_diff( get_the_time( 'U', $post->ID ), current_time( 'timestamp' ) ) ); ?>
+			<?php
+			// translators: %s: years.
+			printf( __( '%s ago', 'ultimate-member' ), human_time_diff( get_the_time( 'U', $post->ID ), current_time( 'timestamp' ) ) );
+			?>
 		</span>
 		<span>
 			<?php _e( 'in', 'ultimate-member' ); ?>: <?php the_category( ', ', '', $post->ID ); ?>
@@ -31,6 +48,7 @@
 			if ( $num_comments == 0 ) {
 				$comments = __( 'no comments', 'ultimate-member' );
 			} elseif ( $num_comments > 1 ) {
+				// translators: %s: coments number.
 				$comments = sprintf( __( '%s comments', 'ultimate-member' ), $num_comments );
 			} else {
 				$comments = __( '1 comment', 'ultimate-member' );

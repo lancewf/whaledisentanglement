@@ -13,6 +13,7 @@ defined( 'ABSPATH' ) || die( 'No direct script access allowed!' );
 
 /**
  * Admin AJAX Controller class, extends Base Controller Class
+ *
  * @package TablePress
  * @subpackage Controllers
  * @author Tobias Bäthge
@@ -21,7 +22,7 @@ defined( 'ABSPATH' ) || die( 'No direct script access allowed!' );
 class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 
 	/**
-	 * Initiate Admin AJAX functionality.
+	 * Initiates the Admin AJAX functionality.
 	 *
 	 * @since 1.0.0
 	 */
@@ -31,14 +32,14 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 
 		parent::__construct();
 
-		$ajax_actions = array( 'hide_message', 'save_table', 'preview_table' );
+		$ajax_actions = array( 'hide_message', 'save_table', 'preview_table', 'save_screen_options' );
 		foreach ( $ajax_actions as $action ) {
 			add_action( "wp_ajax_tablepress_{$action}", array( $this, "ajax_action_{$action}" ) );
 		}
 	}
 
 	/**
-	 * Hide a header message on an admin screen.
+	 * Hides a header message on an admin screen.
 	 *
 	 * @since 1.0.0
 	 */
@@ -61,7 +62,7 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 	}
 
 	/**
-	 * Save the table after the "Save Changes" button on the "Edit" screen has been clicked.
+	 * Saves the table after the "Save Changes" button on the "Edit" screen has been clicked.
 	 *
 	 * @since 1.0.0
 	 */
@@ -88,9 +89,9 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 			// Load table, without table data, but with options and visibility settings.
 			$existing_table = TablePress::$model_table->load( $edit_table['id'], false, true );
 			if ( is_wp_error( $existing_table ) ) { // maybe somehow load a new table here? (TablePress::$model_table->get_table_template())?
-				// Add an error code to the existing WP_Error.
-				$existing_table->add( 'ajax_save_table_load', '', $edit_table['id'] );
-				$error_details = $this->get_wp_error_string( $existing_table );
+				$error = new WP_Error( 'ajax_save_table_load', '', $edit_table['id'] );
+				$error->merge_from( $existing_table );
+				$error_details = TablePress::get_wp_error_string( $error );
 				break;
 			}
 
@@ -98,9 +99,8 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 			if ( empty( $edit_table['data'] )
 			|| empty( $edit_table['options'] )
 			|| empty( $edit_table['visibility'] ) ) {
-				// Create a new WP_Error.
-				$empty_data_error = new WP_Error( 'ajax_save_table_data_empty', '', $edit_table['id'] );
-				$error_details = $this->get_wp_error_string( $empty_data_error );
+				$error = new WP_Error( 'ajax_save_table_data_empty', '', $edit_table['id'] );
+				$error_details = TablePress::get_wp_error_string( $error );
 				break;
 			}
 			$edit_table['data'] = (array) json_decode( $edit_table['data'], true );
@@ -110,9 +110,9 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 			// Check consistency of new table, and then merge with existing table.
 			$table = TablePress::$model_table->prepare_table( $existing_table, $edit_table, true );
 			if ( is_wp_error( $table ) ) {
-				// Add an error code to the existing WP_Error.
-				$table->add( 'ajax_save_table_prepare', '', $edit_table['id'] );
-				$error_details = $this->get_wp_error_string( $table );
+				$error = new WP_Error( 'ajax_save_table_prepare', '', $edit_table['id'] );
+				$error->merge_from( $table );
+				$error_details = TablePress::get_wp_error_string( $error );
 				break;
 			}
 
@@ -124,9 +124,9 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 			// Save updated table.
 			$saved = TablePress::$model_table->save( $table );
 			if ( is_wp_error( $saved ) ) {
-				// Add an error code to the existing WP_Error.
-				$saved->add( 'ajax_save_table_save', '', $table['id'] );
-				$error_details = $this->get_wp_error_string( $saved );
+				$error = new WP_Error( 'ajax_save_table_save', '', $table['id'] );
+				$error->merge_from( $saved );
+				$error_details = TablePress::get_wp_error_string( $error );
 				break;
 			}
 
@@ -148,9 +148,9 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 					$table['id'] = $table['new_id'];
 				} else {
 					$message = 'success_save_error_id_change';
-					// Add an error code to the existing WP_Error.
-					$id_changed->add( 'ajax_save_table_id_change', '', $table['new_id'] );
-					$error_details = $this->get_wp_error_string( $id_changed );
+					$error = new WP_Error( 'ajax_save_table_id_change', '', $table['new_id'] );
+					$error->merge_from( $id_changed );
+					$error_details = TablePress::get_wp_error_string( $error );
 				}
 			} else {
 				$message = 'success_save_error_id_change';
@@ -186,7 +186,7 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 	}
 
 	/**
-	 * Return the live preview data of table that has non-saved changes.
+	 * Returns the live preview data of table that has non-saved changes.
 	 *
 	 * @since 1.0.0
 	 */
@@ -259,19 +259,27 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 			$render_options = shortcode_atts( $default_render_options, $table['options'] );
 			/** This filter is documented in controllers/controller-frontend.php */
 			$render_options = apply_filters( 'tablepress_shortcode_table_shortcode_atts', $render_options );
+			$render_options['html_id'] = "tablepress-{$table['id']}";
 			$_render->set_input( $table, $render_options );
 			$head_html = $_render->get_preview_css();
 			$custom_css = TablePress::$model_options->get( 'custom_css' );
-			if ( ! empty( $custom_css ) ) {
-				$head_html .= "<style type=\"text/css\">\n{$custom_css}\n</style>\n";
+			$use_custom_css = ( TablePress::$model_options->get( 'use_custom_css' ) && '' !== $custom_css );
+			if ( $use_custom_css ) {
+				$head_html .= "<style>\n{$custom_css}\n</style>\n";
 			}
 
 			$body_html = '<div id="tablepress-page"><p>'
 				. __( 'This is a preview of your table.', 'tablepress' ) . ' '
 				. __( 'Because of CSS styling in your theme, the table might look different on your page!', 'tablepress' ) . ' '
-				. __( 'The features of the DataTables JavaScript library are also not available or visible in this preview!', 'tablepress' ) . '<br />'
-				. sprintf( __( 'To insert the table into a page, post, or text widget, copy the Shortcode %s and paste it into the editor.', 'tablepress' ), '<input type="text" class="table-shortcode table-shortcode-inline" value="' . esc_attr( '[' . TablePress::$shortcode . " id={$table['id']} /]" ) . '" readonly="readonly" />' )
-				. '</p>' . $_render->get_output() . '</div>';
+				. __( 'The Table Features for Site Visitors, like sorting, filtering, and pagination, are also not available in this preview!', 'tablepress' ) . '<br />';
+			// Show the instructions string depending on whether the Block Editor is used on the site or not.
+			if ( TablePress::site_uses_block_editor() ) {
+				$body_html .= sprintf( __( 'To insert a table into a post or page, add a “%1$s” block in the block editor and select the desired table.', 'tablepress' ), __( 'TablePress table', 'tablepress' ) );
+			} else {
+				$body_html .= __( 'To insert a table into a post or page, paste its Shortcode at the desired place in the editor.', 'tablepress' ) . ' '
+					. __( 'Each table has a unique ID that needs to be adjusted in that Shortcode.', 'tablepress' );
+			}
+			$body_html .= '</p>' . $_render->get_output() . '</div>';
 		} else {
 			$head_html = '';
 			$body_html = __( 'The preview could not be loaded.', 'tablepress' );
@@ -294,31 +302,51 @@ class TablePress_Admin_AJAX_Controller extends TablePress_Controller {
 	}
 
 	/**
-	 * Retrieve all information of a WP_Error object as a string.
+	 * Saves the screen options on the "Edit" screen when they are changed.
 	 *
-	 * @since 1.4.0
-	 *
-	 * @param WP_Error $wp_error A WP_Error object.
-	 * @return string All error codes, messages, and data of the WP_Error.
+	 * @since 2.1.0
 	 */
-	protected function get_wp_error_string( $wp_error ) {
-		$error_strings = array();
-		$error_codes = $wp_error->get_error_codes();
-		// Reverse order to get latest errors first.
-		$error_codes = array_reverse( $error_codes );
-		foreach ( $error_codes as $error_code ) {
-			$error_strings[ $error_code ] = $error_code;
-			$error_messages = $wp_error->get_error_messages( $error_code );
-			$error_messages = implode( ', ', $error_messages );
-			if ( ! empty( $error_messages ) ) {
-				$error_strings[ $error_code ] .= " ({$error_messages})";
-			}
-			$error_data = $wp_error->get_error_data( $error_code );
-			if ( ! is_null( $error_data ) ) {
-				$error_strings[ $error_code ] .= " [{$error_data}]";
-			}
+	public function ajax_action_save_screen_options() {
+		// Check if the submitted nonce matches the generated nonce we created earlier, dies -1 on failure.
+		TablePress::check_nonce( 'screen_options', false, '_ajax_nonce', true );
+
+		if ( empty( $_POST['tablepress'] ) ) {
+			wp_die( '-1' );
 		}
-		return implode( ";\n", $error_strings );
+		$screen_options = wp_unslash( $_POST['tablepress'] );
+
+		// Sanitize and limit values to a minimum and a maximum.
+		$new_screen_options = array();
+
+		if ( isset( $screen_options['table_editor_column_width'] ) ) {
+			$new_screen_options['table_editor_column_width'] = absint( $screen_options['table_editor_column_width'] );
+			$new_screen_options['table_editor_column_width'] = max( $new_screen_options['table_editor_column_width'], 30 ); // Minimum width: 30 pixels.
+			$new_screen_options['table_editor_column_width'] = min( $new_screen_options['table_editor_column_width'], 9999 ); // Maximum width: 9999 pixels.
+		}
+
+		if ( isset( $screen_options['table_editor_line_clamp'] ) ) {
+			$new_screen_options['table_editor_line_clamp'] = absint( $screen_options['table_editor_line_clamp'] );
+			$new_screen_options['table_editor_line_clamp'] = min( $new_screen_options['table_editor_line_clamp'], 999 ); // Maximum lines: 999. Minimum of 0 (for all lines) is ensured by absint().
+		}
+
+		if ( empty( $new_screen_options ) ) {
+			wp_die( '-1' );
+		}
+		TablePress::$model_options->update( $new_screen_options );
+
+		// Generate the response.
+		$response = array(
+			'success' => true,
+		);
+
+		// Buffer all outputs, to prevent errors/warnings being printed that make the JSON invalid.
+		$output_buffer = ob_get_clean();
+		if ( ! empty( $output_buffer ) ) {
+			$response['output_buffer'] = $output_buffer;
+		}
+
+		// Send the response.
+		wp_send_json( $response );
 	}
 
 } // class TablePress_Admin_AJAX_Controller

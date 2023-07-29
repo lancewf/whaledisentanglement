@@ -104,7 +104,6 @@ if ( ! class_exists( 'um\admin\core\Admin_Columns' ) ) {
 			return $actions;
 		}
 
-
 		/**
 		 * Duplicate a form
 		 *
@@ -112,12 +111,19 @@ if ( ! class_exists( 'um\admin\core\Admin_Columns' ) ) {
 		 *
 		 * @return string
 		 */
-		function duplicate_uri( $id ) {
-			$url = add_query_arg('um_adm_action', 'duplicate_form', admin_url('edit.php?post_type=um_form') );
-			$url = add_query_arg('post_id', $id, $url);
+		private function duplicate_uri( $id ) {
+			$url = add_query_arg(
+				array(
+					'post_type'     => 'um_form',
+					'um_adm_action' => 'duplicate_form',
+					'post_id'       => $id,
+					'_wpnonce'      => wp_create_nonce( "um-duplicate_form{$id}" ),
+				),
+				admin_url( 'edit.php' )
+			);
+
 			return $url;
 		}
-
 
 		/**
 		 * Custom columns for Form
@@ -128,12 +134,12 @@ if ( ! class_exists( 'um\admin\core\Admin_Columns' ) ) {
 		 */
 		function manage_edit_um_form_columns( $columns ) {
 			$new_columns['cb'] = '<input type="checkbox" />';
-			$new_columns['title'] = __( 'Title', 'ulitmate-member' );
-			$new_columns['id'] = __('ID', 'ulitmate-member' );
-			$new_columns['mode'] = __( 'Type', 'ulitmate-member' );
-			$new_columns['is_default'] = __( 'Default', 'ulitmate-member' );
-			$new_columns['shortcode'] = __( 'Shortcode', 'ulitmate-member' );
-			$new_columns['date'] = __( 'Date', 'ulitmate-member' );
+			$new_columns['title'] = __( 'Title', 'ultimate-member' );
+			$new_columns['id'] = __('ID', 'ultimate-member' );
+			$new_columns['mode'] = __( 'Type', 'ultimate-member' );
+			$new_columns['is_default'] = __( 'Default', 'ultimate-member' );
+			$new_columns['shortcode'] = __( 'Shortcode', 'ultimate-member' );
+			$new_columns['date'] = __( 'Date', 'ultimate-member' );
 
 			return $new_columns;
 		}
@@ -150,7 +156,7 @@ if ( ! class_exists( 'um\admin\core\Admin_Columns' ) ) {
 			$new_columns['cb'] = '<input type="checkbox" />';
 			$new_columns['title'] = __( 'Title', 'ultimate-member' );
 			$new_columns['id'] = __( 'ID', 'ultimate-member' );
-			$new_columns['is_default'] = __( 'Default', 'ulitmate-member' );
+			$new_columns['is_default'] = __( 'Default', 'ultimate-member' );
 			$new_columns['shortcode'] = __( 'Shortcode', 'ultimate-member' );
 			$new_columns['date'] = __( 'Date', 'ultimate-member' );
 

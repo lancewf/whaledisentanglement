@@ -1,4 +1,22 @@
-<?php if ( ! defined( 'ABSPATH' ) ) exit; ?>
+<?php
+/**
+ * Template for the profile page
+ *
+ * This template can be overridden by copying it to yourtheme/ultimate-member/templates/profile.php
+ *
+ * Page: "Profile"
+ *
+ * @version 2.6.9
+ *
+ * @var string $mode
+ * @var int    $form_id
+ * @var array  $args
+ */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+$description_key = UM()->profile()->get_show_bio_key( $args );
+?>
 
 <div class="um <?php echo esc_attr( $this->get_class( $mode ) ); ?> um-<?php echo esc_attr( $form_id ); ?> um-role-<?php echo esc_attr( um_user( 'role' ) ); ?> ">
 
@@ -27,7 +45,7 @@
 		do_action( 'um_profile_before_header', $args );
 
 		if ( um_is_on_edit_profile() ) { ?>
-			<form method="post" action="">
+			<form method="post" action="" data-description_key="<?php echo esc_attr( $description_key ); ?>">
 		<?php }
 
 		/**
